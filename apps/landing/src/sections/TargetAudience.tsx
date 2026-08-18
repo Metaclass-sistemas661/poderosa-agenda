@@ -124,7 +124,7 @@ export function TargetAudience() {
               
               <p className="text-sm font-semibold text-primary-500 tracking-widest uppercase mb-3">Para Quem</p>
               <p className="text-lg text-slate-600 mb-8 leading-relaxed max-w-lg">
-                Seja você o dono de um salão de alto padrão, uma barbearia com grande fluxo ou uma clínica moderna, nós nos adaptamos à sua realidade. Automatize a gestão, engaje clientes e foque apenas em entregar o melhor serviço.
+                Seja você uma especialista autônoma que atende sozinha ou dona de uma clínica com grande equipe, a plataforma se molda à sua estrutura. Automatize a gestão, engaje clientes e foque apenas em entregar o melhor serviço.
               </p>
 
             </motion.div>

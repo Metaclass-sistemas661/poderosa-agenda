@@ -82,7 +82,7 @@ export function Problem() {
               Chega de buracos na agenda e faturamento perdido.
             </h3>
             <p className="text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto mb-10">
-              Entre confirmações manuais no WhatsApp, encaixes que dão errado e o caixa que não bate, a gestão do seu salão consome o tempo que você deveria usar para crescer. A Poderosa Agenda automatiza o trabalho chato, para você focar no que realmente importa.
+              Entre confirmações manuais no WhatsApp, encaixes que dão errado e o caixa que não bate, a gestão do seu negócio consome o tempo que você deveria usar para crescer. A Poderosa Agenda automatiza o trabalho chato, para você focar no que realmente importa.
             </p>
             
             <a href="/cadastro" className="inline-flex">

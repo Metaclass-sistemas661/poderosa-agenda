@@ -3,108 +3,119 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
-import { PlayCircle, UserPlus, ChevronDown } from 'lucide-react'
+import { PlayCircle, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 
+// Inverted order as requested: Micro -> Lash -> Nail -> Quarto
+const VIDEOS = [
+  '/micropigmentação-hero.mp4',
+  '/lash-designer.mp4',
+  '/nail-designer.mp4',
+  '/beauty-quarto-video.mp4'
+]
+
+const TRANSITION_DURATION = 1500; // 1.5s crossfade in CSS
+
 export function Hero() {
-  const [activeVideo, setActiveVideo] = useState(0)
-  const video1Ref = useRef<HTMLVideoElement>(null)
-  const video2Ref = useRef<HTMLVideoElement>(null)
-  const video3Ref = useRef<HTMLVideoElement>(null)
   const shouldReduce = useReducedMotion()
+  
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [activePlayer, setActivePlayer] = useState<'A' | 'B'>('A')
+  
+  // Players start with video 0 and video 1
+  const [srcA, setSrcA] = useState(VIDEOS[0])
+  const [srcB, setSrcB] = useState(VIDEOS[1])
 
-  const handleVideo1End = () => {
-    setActiveVideo(1)
-    if (video2Ref.current) {
-      video2Ref.current.currentTime = 0
-      video2Ref.current.play().catch(console.error)
+  const playerARef = useRef<HTMLVideoElement>(null)
+  const playerBRef = useRef<HTMLVideoElement>(null)
+
+  const handleEnded = () => {
+    // Graceful fallback for reduced motion: just loop the current video
+    if (shouldReduce) {
+      const currentVid = activePlayer === 'A' ? playerARef.current : playerBRef.current
+      if (currentVid) {
+        currentVid.currentTime = 0
+        currentVid.play().catch(() => {})
+      }
+      return
     }
+
+    const nextIndex = (currentIndex + 1) % VIDEOS.length
+    setCurrentIndex(nextIndex)
+    setActivePlayer(prev => prev === 'A' ? 'B' : 'A')
   }
 
-  const handleVideo2End = () => {
-    setActiveVideo(2)
-    if (video3Ref.current) {
-      video3Ref.current.currentTime = 0
-      video3Ref.current.play().catch(console.error)
-    }
-  }
-
-  const handleVideo3End = () => {
-    setActiveVideo(0)
-    if (video1Ref.current) {
-      video1Ref.current.currentTime = 0
-      video1Ref.current.play().catch(console.error)
-    }
-  }
-
-  // Autoplay first video on mount
+  // Preload the next video in the background player AFTER the crossfade completes
   useEffect(() => {
-    if (video1Ref.current) {
-      video1Ref.current.play().catch(console.error)
+    if (shouldReduce) return;
+    
+    const timer = setTimeout(() => {
+      const preloadIndex = (currentIndex + 1) % VIDEOS.length
+      if (activePlayer === 'A') {
+        // Player B is now hidden, we can safely swap its source to the next one
+        setSrcB(VIDEOS[preloadIndex])
+      } else {
+        // Player A is now hidden, swap its source
+        setSrcA(VIDEOS[preloadIndex])
+      }
+    }, TRANSITION_DURATION)
+
+    return () => clearTimeout(timer)
+  }, [currentIndex, activePlayer, shouldReduce])
+
+  // Play the newly active player
+  useEffect(() => {
+    const currentVid = activePlayer === 'A' ? playerARef.current : playerBRef.current
+    if (currentVid) {
+      // In reduced motion, we only play on mount and it loops via handleEnded
+      currentVid.play().catch(console.error)
     }
-  }, [])
+  }, [activePlayer])
 
   return (
     <section
       aria-labelledby="hero-headline"
       className="relative min-h-screen flex items-center overflow-hidden bg-black"
     >
-      {/* ── Background Videos Container ── */}
+      {/* ── Background Videos Container (Double-Buffer) ── */}
       <div className="absolute inset-0 bg-black">
-        {/* ── Background Video 1 ──────────────────────────────────────────── */}
+        {/* Player A */}
         <video 
-          ref={video1Ref}
+          ref={playerARef}
+          src={srcA}
           muted 
           playsInline
           preload="auto"
-          onEnded={handleVideo1End}
+          onEnded={handleEnded}
           className={cn(
-            "absolute inset-0 object-cover w-full h-full scale-105 transition-opacity duration-[1500ms]",
-            activeVideo === 0 ? "opacity-100 z-10" : "opacity-0 z-0"
+            "absolute inset-0 object-cover object-center w-full h-full scale-105 transition-opacity duration-[1500ms]",
+            activePlayer === 'A' ? "opacity-100 z-10" : "opacity-0 z-0"
           )}
-        >
-          <source src="/primeiro-hero.mp4" type="video/mp4" />
-        </video>
+        />
 
-        {/* ── Background Video 2 ──────────────────────────────────────────── */}
+        {/* Player B */}
         <video 
-          ref={video2Ref}
+          ref={playerBRef}
+          src={srcB}
           muted 
           playsInline
           preload="auto"
-          onEnded={handleVideo2End}
+          onEnded={handleEnded}
           className={cn(
-            "absolute inset-0 object-cover w-full h-full scale-105 transition-opacity duration-[1500ms]",
-            activeVideo === 1 ? "opacity-100 z-10" : "opacity-0 z-0"
+            "absolute inset-0 object-cover object-center w-full h-full scale-105 transition-opacity duration-[1500ms]",
+            activePlayer === 'B' ? "opacity-100 z-10" : "opacity-0 z-0"
           )}
-        >
-          <source src="/segundo-hero-section.mp4" type="video/mp4" />
-        </video>
-
-        {/* ── Background Video 3 ──────────────────────────────────────────── */}
-        <video 
-          ref={video3Ref}
-          muted 
-          playsInline
-          preload="auto"
-          onEnded={handleVideo3End}
-          className={cn(
-            "absolute inset-0 object-cover w-full h-full scale-105 transition-opacity duration-[1500ms]",
-            activeVideo === 2 ? "opacity-100 z-10" : "opacity-0 z-0"
-          )}
-        >
-          <source src="/terceiro-hero.mp4" type="video/mp4" />
-        </video>
+        />
       </div>
 
       {/* ── Dark Gradient Overlay for Text Readability ──────────────────────────── */}
       <div 
         aria-hidden="true"
-        className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10 z-20 pointer-events-none"
+        className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent z-20 pointer-events-none"
       />
 
-      {/* ── Content (Bottom Left aligned like GlossGenius) ─────────────────────────────────────────────── */}
+      {/* ── Content ─────────────────────────────────────────────── */}
       <div className="absolute bottom-0 left-0 z-30 w-full px-6 md:px-12 lg:px-20 pb-12 lg:pb-16">
         <div className="max-w-4xl">
           {/* Headline */}
@@ -115,7 +126,7 @@ export function Hero() {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="text-5xl lg:text-6xl font-display font-semibold text-white leading-[1.05] tracking-tight mb-6"
           >
-            Gestão completa para o seu salão de beleza.
+            Gestão completa para o seu negócio de beleza.
           </motion.h1>
 
           {/* Subheadline */}

@@ -84,7 +84,7 @@ export function WhyChoose({ id = 'por-que-escolher' }: { id?: string }) {
             <div className="absolute inset-0 p-8 lg:p-10 flex flex-col justify-between">
               <h3 className="text-2xl lg:text-3xl font-semibold text-white drop-shadow-lg tracking-tight">Crescimento sem limites</h3>
               <p className="text-white/90 text-lg lg:text-xl drop-shadow-lg font-medium leading-relaxed">
-                Construído para acompanhar o seu sucesso, do seu primeiro salão até uma rede de franquias.
+                Construído para acompanhar o seu sucesso, da sua agenda individual até a liderança de uma grande equipe.
               </p>
             </div>
           </motion.div>

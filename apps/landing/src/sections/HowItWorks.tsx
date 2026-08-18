@@ -389,7 +389,7 @@ function CRMMockup() {
 // --- MAIN CAROUSEL ---
 
 const cardsData = [
-  { id: 'dashboard', color: 'bg-primary-50', title: 'Painel em Tempo Real', desc: 'Receita, agendamentos, estoque e alertas. Todo o pulso do seu salão em uma única tela.', Mockup: DashboardMockup },
+  { id: 'dashboard', color: 'bg-primary-50', title: 'Painel em Tempo Real', desc: 'Receita, agendamentos, estoque e alertas. Todo o pulso do seu negócio em uma única tela.', Mockup: DashboardMockup },
   { id: 'whatsapp', color: 'bg-slate-100', title: 'Fim das Faltas', desc: 'Automação completa via WhatsApp para lembretes, aniversários e confirmações.', Mockup: WhatsAppMockup },
   { id: 'marketing', color: 'bg-primary-100', title: 'Marketing Inteligente', desc: 'Recupere clientes inativos e dispare promoções que geram dinheiro no caixa via WhatsApp.', Mockup: WhatsAppMarketingMockup },
   { id: 'financeiro', color: 'bg-slate-200', title: 'Controle Financeiro', desc: 'Comissões calculadas automaticamente, despesas mapeadas e lucro garantido.', Mockup: FinancialMockup },
