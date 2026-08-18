@@ -1,0 +1,18 @@
+# Firebase App Hosting — Poderosa Agenda
+# https://firebase.google.com/docs/app-hosting/configure
+
+runConfig:
+  minInstances: 0
+  maxInstances: 100
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 1024
+
+env:
+  # Supabase Configuration (via Secret Manager)
+  - variable: NEXT_PUBLIC_SUPABASE_URL
+    secret: SUPABASE_URL
+  - variable: NEXT_PUBLIC_SUPABASE_ANON_KEY
+    secret: SUPABASE_ANON_KEY
+  - variable: SUPABASE_ANON_KEY
+    secret: SUPABASE_ANON_KEY

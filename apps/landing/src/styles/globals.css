@@ -1,0 +1,398 @@
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme Variables */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --bg-card: #ffffff;
+  --bg-hover: #f3f4f6;
+  
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+  
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+.dark {
+  --bg-primary: #0f1419;
+  --bg-secondary: #1a2332;
+  --bg-tertiary: #202938;
+  --bg-card: #1a2332;
+  --bg-hover: #242d3d;
+  
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  
+  --border-primary: rgba(255, 255, 255, 0.05);
+  --border-secondary: rgba(255, 255, 255, 0.1);
+  
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
+}
+
+.light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --bg-card: #ffffff;
+  --bg-hover: #f3f4f6;
+  
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+  
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Utility Classes */
+.bg-primary { background-color: var(--bg-primary); }
+.bg-secondary { background-color: var(--bg-secondary); }
+.bg-tertiary { background-color: var(--bg-tertiary); }
+.bg-card { background-color: var(--bg-card); }
+
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+
+.border-primary { border-color: var(--border-primary); }
+.border-secondary { border-color: var(--border-secondary); }
+
+/* ===== LIGHT MODE OVERRIDES FOR SALON/ADMIN PANELS ===== */
+/* These override hardcoded dark colors when light mode is active */
+/* Only apply to elements with salon/admin specific classes */
+
+/* Background colors - hex codes (only in salon/admin context) */
+html.light .min-h-screen [class*="bg-[#1a2332]"],
+html.light .min-h-screen [class*="bg-[#0f1419]"],
+html.light .min-h-screen [class*="bg-[#1e2736]"],
+html.light .min-h-screen [class*="bg-[#242d3d]"],
+html.light [class*="dark:bg-[#1a2332]"],
+html.light [class*="dark:bg-[#0f1419]"] {
+  background-color: #ffffff !important;
+}
+
+/* Cards and containers */
+html.light [class*="bg-white/5"],
+html.light [class*="bg-white/10"] {
+  background-color: #f3f4f6 !important;
+}
+
+html.light [class*="bg-white/[0.02]"],
+html.light [class*="bg-white/[0.07]"] {
+  background-color: #f9fafb !important;
+}
+
+/* Hover states */
+html.light [class*="hover:bg-white/5"]:hover,
+html.light [class*="hover:bg-white/10"]:hover {
+  background-color: #e5e7eb !important;
+}
+
+/* Text colors - aggressive for better readability in light mode */
+html.light .text-white,
+html.light [class*="text-white"]:not([class*="text-white/"]):not([class*="bg-gradient"] *) {
+  color: #111827 !important;
+}
+
+/* Keep text white in gradient backgrounds */
+html.light [class*="bg-gradient"],
+html.light [class*="bg-gradient"] *,
+html.light .bg-gradient-to-r,
+html.light .bg-gradient-to-br,
+html.light [class*="from-emerald"],
+html.light [class*="from-blue"],
+html.light [class*="from-purple"] {
+  color: white !important;
+}
+
+/* Gray text colors - significantly darker for readability */
+html.light .text-gray-400,
+html.light [class*="text-gray-400"] {
+  color: #374151 !important;
+}
+
+html.light .text-gray-500,
+html.light [class*="text-gray-500"] {
+  color: #4b5563 !important;
+}
+
+html.light .text-gray-600,
+html.light [class*="text-gray-600"] {
+  color: #1f2937 !important;
+}
+
+/* Placeholder text */
+html.light ::placeholder {
+  color: #6b7280 !important;
+}
+
+/* Icons in light mode - use currentColor */
+html.light svg {
+  color: inherit;
+}
+
+/* Specific icon colors that should stay */
+html.light .text-emerald-400,
+html.light svg.text-emerald-400 {
+  color: #059669 !important;
+}
+
+html.light .text-amber-400,
+html.light svg.text-amber-400 {
+  color: #d97706 !important;
+}
+
+html.light .text-blue-400,
+html.light svg.text-blue-400 {
+  color: #2563eb !important;
+}
+
+html.light .text-red-400,
+html.light svg.text-red-400 {
+  color: #dc2626 !important;
+}
+
+/* Borders */
+html.light [class*="border-white/5"],
+html.light [class*="border-white/10"] {
+  border-color: #e5e7eb !important;
+}
+
+/* Hover text */
+html.light [class*="hover:text-white"]:hover {
+  color: #111827 !important;
+}
+
+/* Keep accent colors */
+html.light .text-emerald-400 {
+  color: #10b981 !important;
+}
+
+/* Dividers */
+html.light [class*="divide-white/5"] > * + * {
+  border-color: #e5e7eb !important;
+}
+
+/* Ring colors */
+html.light [class*="ring-white/10"] {
+  --tw-ring-color: #e5e7eb !important;
+}
+
+/* Shadow adjustments */
+html.light [class*="shadow-emerald-500/20"] {
+  --tw-shadow-color: rgba(16, 185, 129, 0.15);
+}
+
+/* Scrollbar for light mode */
+html.light ::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Selection in light mode */
+html.light ::selection {
+  background: rgba(16, 185, 129, 0.2);
+  color: #047857;
+}
+
+/* Specific overrides for salon panel */
+html.light .min-h-screen {
+  background-color: #f9fafb !important;
+}
+
+html.light aside,
+html.light header {
+  background-color: #ffffff !important;
+}
+
+/* Cards in light mode should have subtle shadow */
+html.light [class*="rounded-2xl"][class*="border"] {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05);
+}
+
+/* Input fields - only in salon/admin panel context */
+html.light .min-h-screen aside input,
+html.light .min-h-screen header input,
+html.light .min-h-screen main input[class*="bg-white/"],
+html.light .min-h-screen main input[class*="bg-transparent"] {
+  background-color: #f9fafb !important;
+  border-color: #e5e7eb !important;
+  color: #111827 !important;
+}
+
+html.light .min-h-screen aside input::placeholder,
+html.light .min-h-screen header input::placeholder {
+  color: #9ca3af !important;
+}
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+  
+  html {
+    @apply scroll-smooth;
+  }
+  
+  body {
+    @apply font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 font-medium rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 focus:ring-primary-500 shadow-lg hover:shadow-xl hover:-translate-y-0.5;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-white text-primary-600 border-2 border-primary-500 hover:bg-primary-50 focus:ring-primary-500;
+  }
+  
+  .btn-outline {
+    @apply btn bg-transparent text-gray-700 border-2 border-gray-300 hover:border-primary-500 hover:text-primary-600 focus:ring-primary-500;
+  }
+  
+  .btn-ghost {
+    @apply btn bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900;
+  }
+  
+  .btn-lg {
+    @apply px-8 py-4 text-lg;
+  }
+  
+  .btn-sm {
+    @apply px-4 py-2 text-sm;
+  }
+  
+  .card {
+    @apply bg-white rounded-2xl shadow-soft p-6 transition-all duration-300;
+  }
+  
+  .card-hover {
+    @apply card hover:shadow-xl hover:-translate-y-1;
+  }
+  
+  .section-title {
+    @apply text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900;
+  }
+  
+  .section-subtitle {
+    @apply text-lg md:text-xl text-gray-600 max-w-3xl mx-auto;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-500 bg-clip-text text-transparent;
+  }
+  
+  .glass {
+    @apply bg-white/80 backdrop-blur-lg border border-white/20;
+  }
+  
+  .input {
+    @apply w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all duration-200;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .badge-primary {
+    @apply badge bg-primary-100 text-primary-700;
+  }
+  
+  .badge-success {
+    @apply badge bg-green-100 text-green-700;
+  }
+  
+  .badge-warning {
+    @apply badge bg-amber-100 text-amber-700;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+  
+  .animation-delay-600 {
+    animation-delay: 600ms;
+  }
+}
+
+/* Custom scrollbar - Hidden visually but scroll still works */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.3);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(236, 72, 153, 0.2);
+  color: #be185d;
+}

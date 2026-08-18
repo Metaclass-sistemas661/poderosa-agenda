@@ -1,0 +1,20 @@
+-- ============================================
+-- ⚠️  ARQUIVO DESCONTINUADO
+-- ============================================
+--
+-- Este arquivo foi substituído pela estrutura organizada em:
+--   📁 supabase/
+--
+-- Para executar o schema completo de uma vez:
+--   📄 supabase/run-all.sql
+--
+-- Para executar individualmente (recomendado em produção):
+--   📁 supabase/00-setup/     → Extensões
+--   📁 supabase/01-tables/    → Tabelas
+--   📁 supabase/02-indexes/   → Índices
+--   📁 supabase/03-triggers/  → Triggers
+--   📁 supabase/04-policies/  → RLS Policies
+--   📁 supabase/05-seeds/     → Dados iniciais
+--
+-- Consulte supabase/README.md para documentação completa.
+-- ============================================
