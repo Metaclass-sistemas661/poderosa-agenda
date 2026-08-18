@@ -1,5 +1,27 @@
+# ═══════════════════════════════════════════════════════════════════════════════
 # Firebase App Hosting — Poderosa Agenda
 # https://firebase.google.com/docs/app-hosting/configure
+#
+# Region: us-east4
+# Backend: poderosa-agenda
+# Framework: Next.js 14 (App Router)
+#
+# QUOTA LIMITS (us-east4, Blaze plan):
+#   - CpuAllocPerProjectRegion: 20,000 millicores (20 vCPUs)
+#   - MemAllocPerProjectRegion: 40 GiB
+#   - maxInstances * cpu must not exceed quota
+#
+# SCALING STRATEGY:
+#   - minInstances: 0 (scale to zero for cost optimization)
+#   - maxInstances: 4 (4 × 1 vCPU = 4,000m, well within 20,000m quota)
+#   - concurrency: 80 (Next.js handles concurrent requests efficiently)
+#   - Effective capacity: 4 × 80 = 320 concurrent requests
+#
+# TO INCREASE CAPACITY:
+#   1. Request quota increase: https://console.cloud.google.com/iam-admin/quotas
+#   2. Update maxInstances proportionally (max 20 with 1 vCPU)
+#   3. Commit and push — App Hosting auto-deploys
+# ═══════════════════════════════════════════════════════════════════════════════
 
 runConfig:
   minInstances: 0
@@ -9,10 +31,25 @@ runConfig:
   memoryMiB: 1024
 
 env:
-  # Supabase Configuration (via Secret Manager)
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Supabase Configuration (via Google Cloud Secret Manager)
+  #
+  # Secrets are managed via:
+  #   firebase apphosting:secrets:set <SECRET_NAME> --project poderosa-agenda
+  #
+  # Access must be granted to the App Hosting backend service account:
+  #   firebase apphosting:secrets:grantaccess <SECRET_NAME> \
+  #     --project poderosa-agenda --backend poderosa-agenda --location us-east4
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  # Public URL for Supabase (exposed to client-side)
   - variable: NEXT_PUBLIC_SUPABASE_URL
     secret: SUPABASE_URL
+
+  # Public anon key for Supabase (exposed to client-side, RLS-protected)
   - variable: NEXT_PUBLIC_SUPABASE_ANON_KEY
     secret: SUPABASE_ANON_KEY
+
+  # Server-side anon key for SSR/API routes
   - variable: SUPABASE_ANON_KEY
     secret: SUPABASE_ANON_KEY

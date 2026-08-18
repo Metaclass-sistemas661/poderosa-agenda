@@ -2,22 +2,36 @@ name: Enterprise Validation Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
   pull-requests: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  NODE_VERSION: "22"
+  WORKING_DIRECTORY: apps/landing
 
 jobs:
-  validate:
-    name: Typecheck, Lint & Build Validation
+  # ─────────────────────────────────────────────────────────────────────
+  # Quality Gate: Lint + Typecheck (fast feedback)
+  # ─────────────────────────────────────────────────────────────────────
+  quality-gate:
+    name: "Quality Gate (Lint + Typecheck)"
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 10
+
     defaults:
       run:
-        working-directory: apps/landing
+        working-directory: ${{ env.WORKING_DIRECTORY }}
 
     steps:
       - name: Checkout Repository
@@ -26,21 +40,147 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
           cache-dependency-path: apps/landing/package-lock.json
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit
 
-      - name: Code Quality (Lint)
+      - name: Code Quality (ESLint)
         run: npm run lint
 
-      - name: Strict Typecheck
+      - name: Strict Typecheck (tsc --noEmit)
         run: npm run typecheck
 
-      - name: Production Build Verification
+  # ─────────────────────────────────────────────────────────────────────
+  # Build Verification: Ensures production build succeeds
+  # ─────────────────────────────────────────────────────────────────────
+  build-verification:
+    name: "Production Build Verification"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [quality-gate]
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: apps/landing/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Production Build
         run: npm run build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: "https://mock.supabase.co"
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock_anon_key"
+          NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder"
+          SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder"
+
+      - name: Validate Build Output
+        run: |
+          if [ ! -d ".next" ]; then
+            echo "::error::Build output directory .next not found"
+            exit 1
+          fi
+          echo "✅ Build output validated successfully"
+
+      - name: Bundle Size Analysis
+        run: |
+          echo "## 📦 Bundle Size Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f ".next/routes-manifest.json" ]; then
+            PAGES=$(cat .next/routes-manifest.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('staticRoutes',[])) + len(d.get('dynamicRoutes',[])))" 2>/dev/null || echo "N/A")
+            echo "- **Total Routes:** $PAGES" >> $GITHUB_STEP_SUMMARY
+          fi
+          BUILD_SIZE=$(du -sh .next | cut -f1)
+          echo "- **Build Size:** $BUILD_SIZE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Security Audit: Dependency vulnerability scanning
+  # ─────────────────────────────────────────────────────────────────────
+  security-audit:
+    name: "Security Audit"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: apps/landing/package-lock.json
+
+      - name: Audit Dependencies (Critical/High)
+        run: npm audit --audit-level=critical --omit=dev || true
+
+      - name: Check for Known Vulnerabilities
+        run: |
+          echo "## 🔒 Security Audit Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          AUDIT_OUTPUT=$(npm audit --omit=dev --json 2>/dev/null || true)
+          CRITICAL=$(echo "$AUDIT_OUTPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('metadata',{}).get('vulnerabilities',{}).get('critical',0))" 2>/dev/null || echo "0")
+          HIGH=$(echo "$AUDIT_OUTPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('metadata',{}).get('vulnerabilities',{}).get('high',0))" 2>/dev/null || echo "0")
+          echo "- **Critical:** $CRITICAL" >> $GITHUB_STEP_SUMMARY
+          echo "- **High:** $HIGH" >> $GITHUB_STEP_SUMMARY
+          if [ "$CRITICAL" -gt 0 ] 2>/dev/null; then
+            echo "::warning::$CRITICAL critical vulnerabilities found in production dependencies"
+          fi
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Infrastructure Validation: apphosting.yaml integrity
+  # ─────────────────────────────────────────────────────────────────────
+  infra-validation:
+    name: "Infrastructure Config Validation"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Validate apphosting.yaml
+        run: |
+          if [ ! -f "apps/landing/apphosting.yaml" ]; then
+            echo "::error::apphosting.yaml not found - Firebase App Hosting will fail"
+            exit 1
+          fi
+          echo "✅ apphosting.yaml exists"
+
+      - name: Validate firebase.json
+        run: |
+          if [ ! -f "apps/landing/firebase.json" ]; then
+            echo "::error::firebase.json not found"
+            exit 1
+          fi
+          echo "✅ firebase.json exists"
+
+      - name: Check Quota Compliance
+        run: |
+          MAX_INSTANCES=$(grep -A1 "maxInstances" apps/landing/apphosting.yaml | head -1 | grep -oP '\d+' || echo "0")
+          CPU=$(grep -A1 "cpu" apps/landing/apphosting.yaml | head -1 | grep -oP '[\d.]+' || echo "1")
+          echo "## 🏗️ Infrastructure Config" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Instances:** $MAX_INSTANCES" >> $GITHUB_STEP_SUMMARY
+          echo "- **CPU per Instance:** $CPU" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total CPU Requested:** $(echo "$MAX_INSTANCES * $CPU * 1000" | bc 2>/dev/null || echo 'N/A')m" >> $GITHUB_STEP_SUMMARY
+          echo "- **Quota Limit (us-east4):** 20000m" >> $GITHUB_STEP_SUMMARY
