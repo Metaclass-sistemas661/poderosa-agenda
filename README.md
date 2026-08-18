@@ -1,4 +1,4 @@
-# 🏪 BeautySaaS - Sistema para Salões de Beleza
+# 🏪 Poderosa Agenda - Sistema para Salões de Beleza
 
 > SaaS completo para gestão de salões de beleza com agendamento online, controle financeiro e dashboard profissional.
 
@@ -52,7 +52,7 @@
 - **Backend**: Next.js API Routes, Supabase
 - **Banco de Dados**: PostgreSQL (Supabase)
 - **Autenticação**: Supabase Auth
-- **Deploy**: Vercel
+- **Deploy**: Firebase App Hosting
 - **Gráficos**: Recharts
 
 ## 📦 Instalação
@@ -68,7 +68,7 @@ npm run dev
 ## 🌐 Ambientes
 
 - **Desenvolvimento**: http://localhost:3000
-- **Produção**: (será configurado na Vercel)
+- **Produção**: (Gerenciado pelo Firebase App Hosting)
 
 ---
 
