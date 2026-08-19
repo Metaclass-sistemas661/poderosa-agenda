@@ -1,41 +1,87 @@
-import { createClient } from '@/lib/supabase/client'
-import { AuthorizationError } from './authorization'
-import type { Database } from '@/lib/database.types'
-import type { SupabaseClientWrapper } from '@/lib/database/types'
-
 /**
- * Trusted Tenant Context
+ * Trusted Tenant Context - SERVER ONLY
  * 
  * Este módulo fornece resolução de tenant server-side de fontes confiáveis.
  * O tenant (salon_id) é SEMPRE derivado do registro admin_users do usuário
  * autenticado, NUNCA de parâmetros de URL ou input do usuário.
+ * 
+ * IMPORTANTE: Este módulo é exclusivamente para uso em:
+ * - Server Actions
+ * - Route Handlers (API Routes)
+ * - Server Components
+ * 
+ * NÃO importe este módulo em Client Components.
+ * 
+ * @module auth/tenant
+ * @security P1-SEC-001 - Fixed: Using server client instead of browser client
  */
 
+import 'server-only'
+
+import { createClient } from '@/lib/supabase/server'
+import { AuthorizationError } from './authorization'
+import type { Database } from '@/lib/database.types'
+
+// Type for the Supabase client query builder
+type SupabaseClient = ReturnType<typeof createClient>
+
+/**
+ * Represents the trusted tenant context derived from authenticated session
+ */
 export interface TenantContext {
+    /** The salon ID the user belongs to (empty for superadmin without assigned salon) */
     salonId: string
+    /** The name of the salon */
     salonName: string
+    /** The authenticated user's ID from auth.users */
     userId: string
+    /** The user's role in the system */
     userRole: 'superadmin' | 'admin' | 'professional' | 'receptionist'
+    /** The user's display name */
     userName: string
+    /** The user's email address */
     userEmail: string
 }
 
 /**
- * Obtém o contexto de tenant confiável da sessão autenticada.
- * Esta é a ÚNICA forma de obter salon_id - nunca de URL params ou form data.
+ * Admin user data shape from database query
+ */
+interface AdminUserData {
+    id: string
+    user_id: string
+    salon_id: string | null
+    role: string
+    name: string
+    email: string
+    salons: { id: string; name: string } | null
+}
+
+/**
+ * Gets the trusted tenant context from the authenticated session.
+ * This is the ONLY way to obtain salon_id - never from URL params or form data.
  * 
- * @throws AuthorizationError se o usuário não está autenticado ou não tem tenant
+ * @security This function:
+ * - Uses server-side Supabase client with proper cookie handling
+ * - Derives tenant from authenticated user's admin_users record
+ * - Never trusts client-supplied tenant information
+ * 
+ * @throws AuthorizationError if user is not authenticated
+ * @throws AuthorizationError if user has no tenant access
+ * @throws AuthorizationError if non-superadmin user has no assigned salon
+ * 
+ * @returns Promise<TenantContext> The trusted tenant context
  */
 export async function getTrustedTenantContext(): Promise<TenantContext> {
     const supabase = createClient()
 
-    // Obtém usuário autenticado
+    // Get authenticated user from server-side session
     const { data: { user }, error: authError } = await supabase.auth.getUser()
+
     if (authError || !user) {
         throw new AuthorizationError('User not authenticated', 'UNAUTHENTICATED')
     }
 
-    // Obtém registro admin_user com informações do salon
+    // Get admin_users record with salon information
     const { data, error: adminError } = await supabase
         .from('admin_users')
         .select(`
@@ -57,36 +103,45 @@ export async function getTrustedTenantContext(): Promise<TenantContext> {
         throw new AuthorizationError('User has no tenant access', 'NO_TENANT')
     }
 
-    // Type assertion para dados do admin_user
-    const adminUser = data as {
-        id: string
-        user_id: string
-        salon_id: string | null
-        role: string
-        name: string
-        email: string
-        salons: { id: string; name: string } | null
+    // Safely extract admin user data
+    const adminUser: AdminUserData = {
+        id: data.id,
+        user_id: data.user_id,
+        salon_id: data.salon_id,
+        role: data.role,
+        name: data.name,
+        email: data.email,
+        salons: data.salons && typeof data.salons === 'object' && !Array.isArray(data.salons)
+            ? data.salons as { id: string; name: string }
+            : null
     }
 
-    // Superadmins podem não ter salon_id
+    // Superadmins may not have salon_id
     if (!adminUser.salon_id && adminUser.role !== 'superadmin') {
         throw new AuthorizationError('User has no assigned salon', 'NO_SALON')
     }
+
+    // Validate role is one of the expected values
+    const validRoles = ['superadmin', 'admin', 'professional', 'receptionist'] as const
+    const userRole = validRoles.includes(adminUser.role as typeof validRoles[number])
+        ? (adminUser.role as TenantContext['userRole'])
+        : 'receptionist' // Default to least privileged role if invalid
 
     return {
         salonId: adminUser.salon_id || '',
         salonName: adminUser.salons?.name || '',
         userId: adminUser.user_id,
-        userRole: adminUser.role as TenantContext['userRole'],
+        userRole,
         userName: adminUser.name,
         userEmail: adminUser.email
     }
 }
 
 /**
- * Obtém apenas o salon_id confiável (atalho)
+ * Gets only the trusted salon_id (shortcut).
  * 
- * @throws AuthorizationError se não tem acesso ao tenant
+ * @throws AuthorizationError if user doesn't have tenant access
+ * @returns Promise<string> The trusted salon_id
  */
 export async function getTrustedSalonId(): Promise<string> {
     const context = await getTrustedTenantContext()
@@ -97,21 +152,27 @@ export async function getTrustedSalonId(): Promise<string> {
 }
 
 /**
- * Valida que um salon_id fornecido corresponde ao tenant confiável do usuário.
- * Usado para prevenir spoofing de tenant em parâmetros de URL.
+ * Validates that a provided salon_id matches the user's trusted tenant.
+ * Used to prevent tenant spoofing in URL parameters.
  * 
- * @param requestedSalonId - O salon_id de URL ou form data
- * @returns true se corresponde, throws se não
+ * @security This function:
+ * - Validates client-supplied salon_id against trusted context
+ * - Superadmins bypass validation (can access any salon)
+ * - Throws on mismatch to prevent cross-tenant access
+ * 
+ * @param requestedSalonId - The salon_id from URL or form data
+ * @returns Promise<boolean> true if valid
+ * @throws AuthorizationError if tenant mismatch
  */
 export async function validateTenantAccess(requestedSalonId: string): Promise<boolean> {
     const context = await getTrustedTenantContext()
 
-    // Superadmins podem acessar qualquer salon
+    // Superadmins can access any salon
     if (context.userRole === 'superadmin') {
         return true
     }
 
-    // Usuários regulares devem corresponder ao salon atribuído
+    // Regular users must match their assigned salon
     if (context.salonId !== requestedSalonId) {
         throw new AuthorizationError(
             'Access denied: salon_id does not match user tenant',
@@ -123,32 +184,29 @@ export async function validateTenantAccess(requestedSalonId: string): Promise<bo
 }
 
 /**
- * Cria um query builder com escopo de tenant.
- * Adiciona automaticamente o filtro salon_id.
+ * Creates a Supabase client with automatic tenant scoping.
+ * 
+ * @returns Promise with supabase client and the user's salonId
  */
-export async function createTenantQuery<TableName extends keyof Database['public']['Tables']>(tableName: TableName) {
+export async function createTenantScopedClient(): Promise<{
+    supabase: SupabaseClient
+    salonId: string
+}> {
     const supabase = createClient()
     const salonId = await getTrustedSalonId()
-
-    const typedClient = supabase as {} as SupabaseClientWrapper
-    const query = typedClient
-        .from(tableName as string)
-        .select('*')
-        .eq('salon_id', salonId)
-
-    return { query, salonId }
+    return { supabase, salonId }
 }
 
 // ============================================================================
 // TENANT-SCOPED DATA ACCESS LAYER
 // ============================================================================
-// Estas funções fornecem acesso a dados com escopo de tenant automaticamente
-// aplicado. Todas as operações são validadas contra o tenant confiável do
-// usuário autenticado, prevenindo vazamento de dados cross-tenant.
+// These functions provide data access with automatic tenant scoping.
+// All operations are validated against the authenticated user's trusted tenant,
+// preventing cross-tenant data leakage.
 // ============================================================================
 
 /**
- * Base interface para entidades com escopo de tenant
+ * Base interface for tenant-scoped entities
  */
 export interface TenantScopedEntity {
     id: string
@@ -158,7 +216,7 @@ export interface TenantScopedEntity {
 }
 
 /**
- * Resultado de operação de dados
+ * Result of a data operation
  */
 export interface DataOperationResult<T> {
     data: T | null
@@ -167,16 +225,16 @@ export interface DataOperationResult<T> {
 }
 
 /**
- * Insert com injeção automática de salon_id.
+ * Insert with automatic salon_id injection.
  * 
- * Segurança:
- * - salon_id é derivado da sessão autenticada (NUNCA de input)
- * - RLS fornece validação adicional no banco de dados
- * - Previne inserção de dados em outros tenants
+ * @security
+ * - salon_id is derived from authenticated session (NEVER from input)
+ * - RLS provides additional validation at database level
+ * - Prevents insertion into other tenants
  * 
- * @param tableName - Nome da tabela no Supabase
- * @param data - Dados a serem inseridos (sem salon_id)
- * @returns Resultado da operação com dados inseridos ou erro
+ * @param tableName - Table name in Supabase
+ * @param data - Data to insert (without salon_id)
+ * @returns Operation result with inserted data or error
  */
 export async function insertWithTenant<
     TableName extends keyof Database['public']['Tables'],
@@ -185,8 +243,6 @@ export async function insertWithTenant<
     tableName: TableName,
     data: Omit<Database['public']['Tables'][TableName]['Insert'], 'salon_id'>
 ): Promise<DataOperationResult<T>> {
-    const supabase = createClient()
-
     let salonId: string
     try {
         salonId = await getTrustedSalonId()
@@ -198,40 +254,39 @@ export async function insertWithTenant<
         }
     }
 
-    // Injeta salon_id confiável - NUNCA aceita de input externo
+    const supabase = createClient()
+
+    // Inject trusted salon_id - NEVER accept from external input
     const insertData = {
         ...data,
         salon_id: salonId
     } as Database['public']['Tables'][TableName]['Insert']
 
-    const typedClientInsert = supabase as {} as SupabaseClientWrapper
-    const result = await typedClientInsert
-        .from(tableName as string)
+    const { data: resultData, error } = await supabase
+        .from(tableName)
         .insert(insertData)
         .select()
         .single()
-        
-    const { data: resultData, error } = result as { data: T | null; error: Error | null }
 
     return {
-        data: resultData as T,
+        data: resultData as T | null,
         error,
-        success: !error && result !== null
+        success: !error && resultData !== null
     }
 }
 
 /**
- * Update com validação de tenant.
+ * Update with tenant validation.
  * 
- * Segurança:
- * - salon_id na cláusula WHERE garante operação apenas no tenant correto
- * - RLS fornece validação adicional no banco de dados
- * - Impede atualização de registros de outros tenants mesmo com ID válido
+ * @security
+ * - salon_id in WHERE clause ensures operation only on correct tenant
+ * - RLS provides additional validation at database level
+ * - Prevents updating records in other tenants even with valid ID
  * 
- * @param tableName - Nome da tabela no Supabase
- * @param id - ID do registro a ser atualizado
- * @param data - Dados para atualização (sem salon_id ou id)
- * @returns Resultado da operação com dados atualizados ou erro
+ * @param tableName - Table name in Supabase
+ * @param id - Record ID to update
+ * @param data - Data for update (without salon_id or id)
+ * @returns Operation result with updated data or error
  */
 export async function updateWithTenant<
     TableName extends keyof Database['public']['Tables'],
@@ -241,8 +296,6 @@ export async function updateWithTenant<
     id: string,
     data: Omit<Database['public']['Tables'][TableName]['Update'], 'salon_id' | 'id'>
 ): Promise<DataOperationResult<T>> {
-    const supabase = createClient()
-
     let salonId: string
     try {
         salonId = await getTrustedSalonId()
@@ -254,48 +307,45 @@ export async function updateWithTenant<
         }
     }
 
+    const supabase = createClient()
+
     const updateData = {
         ...data,
         updated_at: new Date().toISOString()
     } as Database['public']['Tables'][TableName]['Update']
 
-    const typedClientUpdate = supabase as {} as SupabaseClientWrapper
-    // salon_id na cláusula WHERE previne cross-tenant updates
-    const result = await typedClientUpdate
-        .from(tableName as string)
+    // salon_id in WHERE prevents cross-tenant updates
+    const { data: resultData, error } = await supabase
+        .from(tableName)
         .update(updateData)
         .eq('id', id)
         .eq('salon_id', salonId)
         .select()
         .single()
-        
-    const { data: resultData, error } = result as { data: T | null; error: Error | null }
 
     return {
-        data: resultData as T,
+        data: resultData as T | null,
         error,
-        success: !error && result !== null
+        success: !error && resultData !== null
     }
 }
 
 /**
- * Delete com validação de tenant.
+ * Delete with tenant validation.
  * 
- * Segurança:
- * - salon_id na cláusula WHERE garante deleção apenas no tenant correto
- * - RLS fornece validação adicional no banco de dados
- * - Impede deleção de registros de outros tenants mesmo com ID válido
+ * @security
+ * - salon_id in WHERE clause ensures deletion only on correct tenant
+ * - RLS provides additional validation at database level
+ * - Prevents deleting records in other tenants even with valid ID
  * 
- * @param tableName - Nome da tabela no Supabase
- * @param id - ID do registro a ser deletado
- * @returns Resultado da operação
+ * @param tableName - Table name in Supabase
+ * @param id - Record ID to delete
+ * @returns Operation result
  */
 export async function deleteWithTenant<TableName extends keyof Database['public']['Tables']>(
     tableName: TableName,
     id: string
 ): Promise<{ error: Error | null; success: boolean }> {
-    const supabase = createClient()
-
     let salonId: string
     try {
         salonId = await getTrustedSalonId()
@@ -306,14 +356,13 @@ export async function deleteWithTenant<TableName extends keyof Database['public'
         }
     }
 
-    const typedClientDelete = supabase as {} as SupabaseClientWrapper
-    const result = await typedClientDelete
-        .from(tableName as string)
+    const supabase = createClient()
+
+    const { error } = await supabase
+        .from(tableName)
         .delete()
         .eq('id', id)
         .eq('salon_id', salonId)
-        
-    const { error } = result as { error: Error | null }
 
     return {
         error,
@@ -322,27 +371,29 @@ export async function deleteWithTenant<TableName extends keyof Database['public'
 }
 
 /**
- * Select com escopo de tenant automático.
+ * Select with automatic tenant scoping.
  * 
- * Segurança:
- * - salon_id automaticamente aplicado ao filtro
- * - RLS fornece validação adicional no banco de dados
+ * @security
+ * - salon_id automatically applied to filter
+ * - RLS provides additional validation at database level
  * 
- * @param tableName - Nome da tabela no Supabase
- * @param options - Opções de query (select, order, limit)
- * @returns Resultado da operação com dados ou erro
+ * @param tableName - Table name in Supabase
+ * @param options - Query options (select, order, limit, filters)
+ * @returns Operation result with data or error
  */
 export async function selectWithTenant<T extends TenantScopedEntity>(
-    tableName: string,
+    tableName: keyof Database['public']['Tables'],
     options?: {
         select?: string
         orderBy?: { column: string; ascending?: boolean }
         limit?: number
-        filters?: Array<{ column: string; operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'ilike'; value: unknown }>
+        filters?: Array<{
+            column: string
+            operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'ilike'
+            value: string | number | boolean | null
+        }>
     }
 ): Promise<DataOperationResult<T[]>> {
-    const supabase = createClient()
-
     let salonId: string
     try {
         salonId = await getTrustedSalonId()
@@ -354,54 +405,77 @@ export async function selectWithTenant<T extends TenantScopedEntity>(
         }
     }
 
-    const typedClientSelect = supabase as {} as SupabaseClientWrapper
-    let query = typedClientSelect
-        .from(tableName as string)
+    const supabase = createClient()
+
+    let query = supabase
+        .from(tableName)
         .select(options?.select || '*')
         .eq('salon_id', salonId)
 
-    // Aplicar filtros adicionais
+    // Apply additional filters
     if (options?.filters) {
         for (const filter of options.filters) {
-            query = query[filter.operator](filter.column, filter.value)
+            switch (filter.operator) {
+                case 'eq':
+                    query = query.eq(filter.column, filter.value)
+                    break
+                case 'neq':
+                    query = query.neq(filter.column, filter.value)
+                    break
+                case 'gt':
+                    query = query.gt(filter.column, filter.value)
+                    break
+                case 'gte':
+                    query = query.gte(filter.column, filter.value)
+                    break
+                case 'lt':
+                    query = query.lt(filter.column, filter.value)
+                    break
+                case 'lte':
+                    query = query.lte(filter.column, filter.value)
+                    break
+                case 'like':
+                    query = query.like(filter.column, String(filter.value))
+                    break
+                case 'ilike':
+                    query = query.ilike(filter.column, String(filter.value))
+                    break
+            }
         }
     }
 
-    // Aplicar ordenação
+    // Apply ordering
     if (options?.orderBy) {
         query = query.order(options.orderBy.column, { ascending: options.orderBy.ascending ?? true })
     }
 
-    // Aplicar limite
+    // Apply limit
     if (options?.limit) {
         query = query.limit(options.limit)
     }
 
-    const result = await query
-    const { data, error } = result as { data: T[] | null; error: Error | null }
+    const { data, error } = await query
 
     return {
-        data,
+        data: data as T[] | null,
         error,
-        success: !error && result !== null
+        success: !error && data !== null
     }
 }
 
 /**
- * Seleciona um único registro por ID com validação de tenant.
+ * Select a single record by ID with tenant validation.
  * 
- * @param tableName - Nome da tabela no Supabase
- * @param id - ID do registro
- * @param select - Campos a selecionar (padrão: '*')
- * @returns Resultado da operação
+ * @param tableName - Table name in Supabase
+ * @param id - Record ID
+ * @param select - Fields to select (default: '*')
+ * @returns Operation result
  */
 export async function selectOneWithTenant<T extends TenantScopedEntity>(
-    tableName: string,
+    tableName: keyof Database['public']['Tables'],
     id: string,
     select?: string
 ): Promise<DataOperationResult<T>> {
-    const supabase = createClient()
-
     let salonId: string
     try {
         salonId = await getTrustedSalonId()
@@ -413,19 +487,18 @@ export async function selectOneWithTenant<T extends TenantScopedEntity>(
         }
     }
 
-    const typedClientOne = supabase as {} as SupabaseClientWrapper
-    const result = await typedClientOne
-        .from(tableName as string)
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+        .from(tableName)
         .select(select || '*')
         .eq('id', id)
         .eq('salon_id', salonId)
         .single()
-        
-    const { data, error } = result as { data: T | null; error: Error | null }
 
     return {
-        data,
+        data: data as T | null,
         error,
-        success: !error && result !== null
+        success: !error && data !== null
     }
 }

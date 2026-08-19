@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { buildSearchOrClause, SEARCH_MAX_LENGTH } from '@/lib/search/security'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { WhatsNewModal, VersionBadge } from '@/components/ui/WhatsNewModal'
@@ -379,6 +380,7 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
   ]
 
   // Busca global em tempo real
+  // P1-SEARCH-001: Usando sanitização da biblioteca de segurança
   useEffect(() => {
     if (!searchQuery.trim() || !user?.salon_id) {
       setSearchResults({ clients: [], services: [], professionals: [], appointments: [] })
@@ -387,33 +389,62 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
 
     const searchTimeout = setTimeout(async () => {
       setIsSearching(true)
-      const query = searchQuery.toLowerCase().trim()
+
+      // P1-SEARCH-001: Sanitize search term using security library
+      const clientsOrClause = buildSearchOrClause({
+        term: searchQuery,
+        columns: ['name', 'phone', 'email']
+      })
+
+      const servicesOrClause = buildSearchOrClause({
+        term: searchQuery,
+        columns: ['name', 'category']
+      })
+
+      const professionalsOrClause = buildSearchOrClause({
+        term: searchQuery,
+        columns: ['name', 'specialty']
+      })
+
+      const appointmentsOrClause = buildSearchOrClause({
+        term: searchQuery,
+        columns: ['client_name', 'service_name']
+      })
+
+      // Skip if search term is invalid (returns null from sanitization)
+      // All clauses use the same input, so if one is null, all are null
+      if (!clientsOrClause || !servicesOrClause || !professionalsOrClause || !appointmentsOrClause) {
+        setSearchResults({ clients: [], services: [], professionals: [], appointments: [] })
+        setIsSearching(false)
+        return
+      }
 
       try {
-        // Buscar clientes
-        const { data: clients } = await (supabase as any)
+        // Type-safe: all clauses are now guaranteed to be string (not null)
+        // Buscar clientes - using sanitized query
+        const { data: clients } = await supabase
           .from('clients')
           .select('id, name, phone, email')
           .eq('salon_id', user.salon_id)
-          .or(`name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%`)
+          .or(clientsOrClause)
           .limit(5)
 
-        // Buscar serviços
-        const { data: services } = await (supabase as any)
+        // Buscar serviços - using sanitized query
+        const { data: services } = await supabase
           .from('services')
           .select('id, name, price, category')
           .eq('salon_id', user.salon_id)
           .eq('is_active', true)
-          .or(`name.ilike.%${query}%,category.ilike.%${query}%`)
+          .or(servicesOrClause)
           .limit(5)
 
-        // Buscar profissionais
-        const { data: professionals } = await (supabase as any)
+        // Buscar profissionais - using sanitized query
+        const { data: professionals } = await supabase
           .from('professionals')
           .select('id, name, specialty')
           .eq('salon_id', user.salon_id)
           .eq('is_active', true)
-          .or(`name.ilike.%${query}%,specialty.ilike.%${query}%`)
+          .or(professionalsOrClause)
           .limit(5)
 
         // Buscar agendamentos (últimos 30 dias e próximos 30 dias)
@@ -421,13 +452,14 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
         const past30 = new Date(today.getTime() - 30 * 86400000).toISOString().split('T')[0]
         const future30 = new Date(today.getTime() + 30 * 86400000).toISOString().split('T')[0]
 
-        const { data: appointments } = await (supabase as any)
+        // Using sanitized query for appointments
+        const { data: appointments } = await supabase
           .from('appointments')
           .select('id, client_name, service_name, scheduled_date, scheduled_time')
           .eq('salon_id', user.salon_id)
           .gte('scheduled_date', past30)
           .lte('scheduled_date', future30)
-          .or(`client_name.ilike.%${query}%,service_name.ilike.%${query}%`)
+          .or(appointmentsOrClause)
           .order('scheduled_date', { ascending: true })
           .limit(5)
 
@@ -511,14 +543,6 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="hidden lg:flex items-center justify-center p-1.5 dark:text-gray-400 light:text-gray-600 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors ml-auto flex-shrink-0"
-            title={sidebarCollapsed ? "Expandir" : "Recolher"}
-          >
-            {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-          </button>
-
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden dark:text-gray-400 light:text-gray-600 dark:hover:text-white light:hover:text-gray-900 ml-auto flex-shrink-0">
             <X className="w-5 h-5" />
           </button>
@@ -569,6 +593,21 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
           <button onClick={handleLogout} className="flex items-center gap-3 w-full px-3 py-2.5 dark:text-gray-400 light:text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors">
             <LogOut className="w-5 h-5" />
             <span className="font-medium text-sm">Sair</span>
+          </button>
+        </div>
+
+        {/* Collapse Toggle (Desktop only) */}
+        <div className="hidden lg:block p-3 border-t dark:border-white/5 light:border-gray-200">
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className={cn(
+              "flex items-center gap-3 w-full px-3 py-2.5 dark:text-gray-400 light:text-gray-600 dark:hover:text-[var(--color-primary-400)] light:hover:text-[var(--color-primary-600)] dark:hover:bg-white/5 light:hover:bg-gray-100 rounded-xl transition-colors",
+              sidebarCollapsed && "justify-center"
+            )}
+            title={sidebarCollapsed ? "Expandir" : "Recolher"}
+          >
+            {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            {!sidebarCollapsed && <span className="font-medium text-sm">Recolher</span>}
           </button>
         </div>
       </aside>

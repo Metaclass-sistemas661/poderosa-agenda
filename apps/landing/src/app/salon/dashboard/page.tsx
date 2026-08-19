@@ -210,7 +210,20 @@ export default function SalonDashboard() {
         }
       })
 
-      const occupancyRate = Math.min(100, Math.round((todayAppts.length / 20) * 100))
+      // F02 FIX: Real Completion Rate instead of fictional occupancy (todayAppts / 20)
+      // Completion Rate = completed appointments / total appointments for today
+      const totalTodayAppts = todayAppts.length
+      const occupancyRate = totalTodayAppts > 0 
+        ? Math.round((completed / totalTodayAppts) * 100) 
+        : 0
+
+      // Compute real day-over-day change for completion rate
+      const yesterdayCompleted = yesterdayAppts.filter((a: { status: string }) => a.status === 'completed').length
+      const yesterdayTotal = yesterdayAppts.length
+      const yesterdayOccupancy = yesterdayTotal > 0 ? Math.round((yesterdayCompleted / yesterdayTotal) * 100) : 0
+      const occupancyChange = yesterdayOccupancy > 0 
+        ? occupancyRate - yesterdayOccupancy 
+        : (occupancyRate > 0 ? occupancyRate : 0)
 
       const realAlerts: Alert[] = []
 
@@ -284,7 +297,7 @@ export default function SalonDashboard() {
         todayAppointments: todayAppts.length,
         appointmentsChange: apptChange,
         occupancyRate,
-        occupancyChange: 5,
+        occupancyChange,
         revenueChartData: chartData,
         donutData: donutData.length > 0 ? donutData : [{ name: 'Sem Dados', value: 1, color: COLORS.gray }],
         monthRevenue: monthRev,
@@ -347,7 +360,7 @@ export default function SalonDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card title="Receita de Hoje" value={formatCurrency(data.todayRevenue)} change={data.revenueChange} />
         <Card title="Agendamentos Hoje" value={data.todayAppointments} change={data.appointmentsChange} />
-        <Card title="Taxa de Ocupação" value={`${data.occupancyRate}%`} change={data.occupancyChange} />
+        <Card title="Taxa de Conclusão" value={`${data.occupancyRate}%`} change={data.occupancyChange} />
       </div>
 
       {/* Middle Row */}

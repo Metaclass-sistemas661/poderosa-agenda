@@ -27,6 +27,7 @@ import {
   User
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { createSalonManual } from '@/app/actions/provisioning'
 
 interface Salon {
   id: string
@@ -303,7 +304,7 @@ export default function SaloesPage() {
     setTimeout(() => setMessage(null), 3000)
   }
 
-  // Criar
+  // Criar — Canonical Provisioning Pipeline (F04)
   const handleCreate = async () => {
     const isValid = await validateCreateForm()
     if (!isValid) return
@@ -311,31 +312,23 @@ export default function SaloesPage() {
     setIsSaving(true)
 
     try {
-      const { data, error } = await (supabase.from('salons') as any)
-        .insert({
-          name: createForm.name,
-          owner_name: createForm.owner_name,
-          email: createForm.email,
-          phone: createForm.phone ? createForm.phone.replace(/\D/g, '') : null,
-          city: createForm.city,
-          state: createForm.state,
-          plan: createForm.plan,
-          professionals_count: createForm.professionals_count,
-          document_type: createForm.document ? createForm.document_type : null,
-          document: createForm.document ? createForm.document.replace(/\D/g, '') : null,
-          status: 'active',
-        })
-        .select()
-        .single()
+      const result = await createSalonManual({
+        salon_name: createForm.name,
+        owner_name: createForm.owner_name,
+        email: createForm.email,
+        phone: createForm.phone ? createForm.phone.replace(/\D/g, '') : '',
+        city: createForm.city,
+        state: createForm.state,
+        professionals: createForm.professionals_count,
+      })
 
-      if (error) {
-        console.error('Erro Supabase:', error)
-        setMessage({ type: 'error', text: `Erro: ${error.message}` })
-      } else if (data) {
-        setSalons(prev => [data, ...prev])
-        setMessage({ type: 'success', text: 'Salão criado!' })
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Salão criado e provisionado com sucesso!' })
         setShowCreateDrawer(false)
         setCreateForm({ name: '', owner_name: '', email: '', phone: '', city: '', state: '', plan: 'basic', professionals_count: '1', document_type: 'cpf', document: '' })
+        await fetchSalons() // Reload from DB to get the real record
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Erro ao criar salão.' })
       }
     } catch (err) {
       console.error('Erro:', err)

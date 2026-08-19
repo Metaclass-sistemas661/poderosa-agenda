@@ -19,6 +19,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { approveAndProvisionSalon, rejectSalonRequest } from '@/app/actions/provisioning'
 
 interface AccessRequest {
   id: string
@@ -66,29 +67,37 @@ export default function SolicitacoesPage() {
   // Aprovar solicitação
   const handleApprove = async (id: string) => {
     setActionLoading(id)
-    const { error } = await (supabase.from('access_requests') as any)
-      .update({ status: 'approved' })
-      .eq('id', id)
-
-    if (!error) {
-      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r))
-      setSelectedRequest(null)
+    try {
+      const result = await approveAndProvisionSalon(id)
+      if (result.success) {
+        setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r))
+        setSelectedRequest(null)
+      } else {
+        alert(result.error || 'Erro ao aprovar solicitação.')
+      }
+    } catch (error) {
+      alert('Ocorreu um erro interno ao aprovar.')
+    } finally {
+      setActionLoading(null)
     }
-    setActionLoading(null)
   }
 
   // Rejeitar solicitação
   const handleReject = async (id: string) => {
     setActionLoading(id)
-    const { error } = await (supabase.from('access_requests') as any)
-      .update({ status: 'rejected' })
-      .eq('id', id)
-
-    if (!error) {
-      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r))
-      setSelectedRequest(null)
+    try {
+      const result = await rejectSalonRequest(id)
+      if (result.success) {
+        setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r))
+        setSelectedRequest(null)
+      } else {
+        alert(result.error || 'Erro ao rejeitar solicitação.')
+      }
+    } catch (error) {
+      alert('Ocorreu um erro interno ao rejeitar.')
+    } finally {
+      setActionLoading(null)
     }
-    setActionLoading(null)
   }
 
   // Filtrar

@@ -28,6 +28,7 @@ import {
 } from '@/lib/validation/schemas'
 
 import type { Client } from '@/lib/database/types'
+import { buildSearchOrClause } from '@/lib/search/security'
 
 // ============================================================================
 // CREATE CLIENT
@@ -245,18 +246,29 @@ export const listClientsAction = createAction<ListClientsInput, { clients: Clien
         .select('*', { count: 'exact' })
         .eq('salon_id', ctx.tenant.salonId)
 
-    // Busca por nome, email ou telefone
-    if (input.search) {
-        query = query.or(`name.ilike.%${input.search}%,email.ilike.%${input.search}%,phone.ilike.%${input.search}%`)
+    // P1-SEARCH-001: Busca por nome, email ou telefone com sanitização
+    if (input.search && input.search.trim()) {
+        const orClause = buildSearchOrClause({
+            term: input.search,
+            columns: ['name', 'email', 'phone']
+        })
+
+        if (orClause) {
+            query = query.or(orClause)
+        }
+        // If orClause is null, the search term was invalid - skip filtering
     }
 
-    // Ordenação
-    const orderColumn = input.orderBy || 'name'
+    // Ordenação - whitelist para prevenir injection
+    const allowedOrderColumns = ['name', 'created_at', 'last_visit', 'total_visits'] as const
+    const orderColumn = allowedOrderColumns.includes(input.orderBy as typeof allowedOrderColumns[number])
+        ? input.orderBy!
+        : 'name'
     query = query.order(orderColumn, { ascending: input.ascending ?? true })
 
-    // Paginação
-    const limit = Math.min(input.limit || 50, 100)
-    const offset = input.offset || 0
+    // Paginação com limites seguros
+    const limit = Math.min(Math.max(input.limit || 50, 1), 100) // Entre 1 e 100
+    const offset = Math.max(input.offset || 0, 0) // Mínimo 0
     query = query.range(offset, offset + limit - 1)
 
     const { data: clients, error, count } = await query
