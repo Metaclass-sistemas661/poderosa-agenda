@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { useSalonId } from '@/hooks/useSalonContext'
@@ -67,29 +67,50 @@ export default function SalonDashboard() {
     return () => clearInterval(interval)
   }, [data?.alerts])
 
+  // PERF-007: Debounced realtime refetch to coalesce multiple events
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const REALTIME_DEBOUNCE_MS = 1000 // Coalesce events within 1 second
+
+  const debouncedFetchData = useCallback(() => {
+    // Clear any existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    // Set new debounced timer
+    debounceTimerRef.current = setTimeout(() => {
+      fetchData()
+    }, REALTIME_DEBOUNCE_MS)
+  }, [salonId, chartPeriod])
+
   useEffect(() => {
     if (salonId && !isSalonLoading) {
       fetchData()
 
-      // Enterprise Solution: Assinatura Realtime para atualizar o dashboard ao vivo
+      // PERF-007: Enterprise Solution with debounced realtime updates
+      // Instead of triggering fetchData immediately on each event,
+      // we debounce to coalesce rapid-fire events (e.g., batch updates)
       const channel = supabase.channel('dashboard_realtime')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'transactions', filter: `salon_id=eq.${salonId}` },
-          () => { fetchData() }
+          () => { debouncedFetchData() }
         )
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'appointments', filter: `salon_id=eq.${salonId}` },
-          () => { fetchData() }
+          () => { debouncedFetchData() }
         )
         .subscribe()
 
       return () => {
+        // Cleanup: clear debounce timer and remove channel
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current)
+        }
         supabase.removeChannel(channel)
       }
     }
-  }, [salonId, isSalonLoading, chartPeriod])
+  }, [salonId, isSalonLoading, chartPeriod, debouncedFetchData])
 
   // PERF-002: Removed loadSalonId - now using shared useSalonId hook
 
