@@ -1,18 +1,11 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 import type { Database } from './database.types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Cliente com persistência de sessão via localStorage
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    storageKey: 'poderosa-agenda-auth',
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  }
-})
+// Cliente Enterprise com sincronização automática de cookies (SSR)
+export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
 
 // Helper para verificar se o Supabase está configurado
 export const isSupabaseConfigured = () => {
