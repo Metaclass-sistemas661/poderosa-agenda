@@ -53,3 +53,7 @@ env:
   # Server-side anon key for SSR/API routes
   - variable: SUPABASE_ANON_KEY
     secret: SUPABASE_ANON_KEY
+
+  # Server-side service role key for Admin/Provisioning tasks
+  - variable: SUPABASE_SERVICE_ROLE_KEY
+    secret: SUPABASE_SERVICE_ROLE_KEY
