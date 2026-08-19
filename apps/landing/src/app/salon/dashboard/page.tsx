@@ -124,32 +124,72 @@ export default function SalonDashboard() {
       const chartStartDate = `${chartStartDateObj.getFullYear()}-${String(chartStartDateObj.getMonth() + 1).padStart(2, '0')}-${String(chartStartDateObj.getDate()).padStart(2, '0')}`
 
       const fetchStart = chartStartDate < startOfMonth ? chartStartDate : startOfMonth
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString().split('T')[0]
+      const todayMonth = String(now.getMonth() + 1).padStart(2, '0')
+      const todayDay = String(now.getDate()).padStart(2, '0')
 
-      // Revenue
-      const { data: transactions } = await (supabase as any)
-        .from('transactions')
-        .select('amount, date, is_confirmed, type')
-        .eq('salon_id', salonId)
-        .eq('type', 'income')
-        .eq('is_confirmed', true)
-        .gte('date', fetchStart)
+      // PERF-001/PERF-005: Parallel query execution for independent data sources
+      // All queries below are INDEPENDENT - they only depend on salonId and date ranges
+      const [
+        transactionsResult,
+        appointmentsResult,
+        heatmapResult,
+        clientsResult,
+        productsResult
+      ] = await Promise.all([
+        // Q1: Revenue transactions
+        (supabase as any)
+          .from('transactions')
+          .select('amount, date')
+          .eq('salon_id', salonId)
+          .eq('type', 'income')
+          .eq('is_confirmed', true)
+          .gte('date', fetchStart),
 
-      // Appointments (Fetch with same fetchStart logic so chart data works for past 30 days)
-      const { data: appointments } = await (supabase as any)
-        .from('appointments')
-        .select('*')
-        .eq('salon_id', salonId)
-        .gte('scheduled_date', fetchStart)
+        // Q2: Appointments for today/recent
+        (supabase as any)
+          .from('appointments')
+          .select('id, scheduled_date, scheduled_time, status')
+          .eq('salon_id', salonId)
+          .gte('scheduled_date', fetchStart),
 
-      const todayAppts = appointments?.filter((a: any) => a.scheduled_date === today) || []
-      const yesterdayAppts = appointments?.filter((a: any) => a.scheduled_date === yesterday) || []
+        // Q3: Heatmap appointments (last 30 days)
+        (supabase as any)
+          .from('appointments')
+          .select('scheduled_date, scheduled_time')
+          .eq('salon_id', salonId)
+          .gte('scheduled_date', thirtyDaysAgo),
+
+        // Q4: Clients with birthdays today
+        (supabase as any)
+          .from('clients')
+          .select('id, name, birth_date')
+          .eq('salon_id', salonId),
+
+        // Q5: Low stock products
+        (supabase as any)
+          .from('products')
+          .select('id, stock_quantity, min_stock')
+          .eq('salon_id', salonId)
+      ])
+
+      // Extract data from results with error isolation
+      const transactions = transactionsResult.data
+      const appointments = appointmentsResult.data
+      const heatmapAppts = heatmapResult.data
+      const birthdayClients = clientsResult.data
+      const lowStockProducts = productsResult.data
+
+      // Process appointments
+      const todayAppts = appointments?.filter((a: { scheduled_date: string }) => a.scheduled_date === today) || []
+      const yesterdayAppts = appointments?.filter((a: { scheduled_date: string }) => a.scheduled_date === yesterday) || []
 
       // Revenue Calculation exclusively from Transactions (Single Source of Truth)
-      const todayRev = transactions?.filter((t: any) => t.date === today).reduce((acc: any, t: any) => acc + Number(t.amount), 0) || 0
-      const yesterdayRev = transactions?.filter((t: any) => t.date === yesterday).reduce((acc: any, t: any) => acc + Number(t.amount), 0) || 0
+      const todayRev = transactions?.filter((t: { date: string }) => t.date === today).reduce((acc: number, t: { amount: number | string }) => acc + Number(t.amount), 0) || 0
+      const yesterdayRev = transactions?.filter((t: { date: string }) => t.date === yesterday).reduce((acc: number, t: { amount: number | string }) => acc + Number(t.amount), 0) || 0
       const revChange = yesterdayRev > 0 ? ((todayRev - yesterdayRev) / yesterdayRev) * 100 : (todayRev > 0 ? 100 : 0)
 
-      const monthRev = transactions?.filter((t: any) => t.date >= startOfMonth).reduce((acc: any, t: any) => acc + Number(t.amount), 0) || 0
+      const monthRev = transactions?.filter((t: { date: string }) => t.date >= startOfMonth).reduce((acc: number, t: { amount: number | string }) => acc + Number(t.amount), 0) || 0
 
       const apptChange = yesterdayAppts.length > 0 ? ((todayAppts.length - yesterdayAppts.length) / yesterdayAppts.length) * 100 : (todayAppts.length > 0 ? 100 : 0)
 
@@ -159,7 +199,7 @@ export default function SalonDashboard() {
         const d = new Date(now)
         d.setDate(now.getDate() - i)
         const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-        const dayRev = transactions?.filter((t: any) => t.date === dateStr).reduce((acc: any, t: any) => acc + Number(t.amount), 0) || 0
+        const dayRev = transactions?.filter((t: { date: string }) => t.date === dateStr).reduce((acc: number, t: { amount: number | string }) => acc + Number(t.amount), 0) || 0
 
         chartData.push({
           date: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
@@ -168,10 +208,10 @@ export default function SalonDashboard() {
       }
 
       // Donut Data (Today Status)
-      const scheduled = todayAppts.filter((a: any) => a.status === 'scheduled').length
-      const confirmed = todayAppts.filter((a: any) => a.status === 'confirmed').length
-      const completed = todayAppts.filter((a: any) => a.status === 'completed').length
-      const cancelled = todayAppts.filter((a: any) => a.status === 'cancelled').length
+      const scheduled = todayAppts.filter((a: { status: string }) => a.status === 'scheduled').length
+      const confirmed = todayAppts.filter((a: { status: string }) => a.status === 'confirmed').length
+      const completed = todayAppts.filter((a: { status: string }) => a.status === 'completed').length
+      const cancelled = todayAppts.filter((a: { status: string }) => a.status === 'cancelled').length
 
       const donutData = [
         { name: 'Confirmado', value: confirmed, color: COLORS.success },
@@ -180,17 +220,11 @@ export default function SalonDashboard() {
         { name: 'Cancelado', value: cancelled, color: COLORS.danger },
       ].filter(d => d.value > 0)
 
-      // Heatmap Data (Últimos 30 dias para mais densidade de dados)
-      const { data: heatmapAppts } = await (supabase as any)
-        .from('appointments')
-        .select('scheduled_date, scheduled_time')
-        .eq('salon_id', salonId)
-        .gte('scheduled_date', new Date(now.getTime() - 30 * 86400000).toISOString().split('T')[0])
-
+      // Heatmap Data (already fetched in parallel)
       const heatmap = Array(6).fill(0).map(() => Array(6).fill(0))
       let maxHeatmap = 0
 
-      heatmapAppts?.forEach((a: any) => {
+      heatmapAppts?.forEach((a: { scheduled_date: string; scheduled_time?: string }) => {
         // T12:00:00 para evitar que a data mude por causa de fuso horário UTC no Brasil
         const d = new Date(a.scheduled_date + 'T12:00:00')
         const day = d.getDay()
@@ -213,16 +247,16 @@ export default function SalonDashboard() {
       // F02 FIX: Real Completion Rate instead of fictional occupancy (todayAppts / 20)
       // Completion Rate = completed appointments / total appointments for today
       const totalTodayAppts = todayAppts.length
-      const occupancyRate = totalTodayAppts > 0 
-        ? Math.round((completed / totalTodayAppts) * 100) 
+      const occupancyRate = totalTodayAppts > 0
+        ? Math.round((completed / totalTodayAppts) * 100)
         : 0
 
       // Compute real day-over-day change for completion rate
       const yesterdayCompleted = yesterdayAppts.filter((a: { status: string }) => a.status === 'completed').length
       const yesterdayTotal = yesterdayAppts.length
       const yesterdayOccupancy = yesterdayTotal > 0 ? Math.round((yesterdayCompleted / yesterdayTotal) * 100) : 0
-      const occupancyChange = yesterdayOccupancy > 0 
-        ? occupancyRate - yesterdayOccupancy 
+      const occupancyChange = yesterdayOccupancy > 0
+        ? occupancyRate - yesterdayOccupancy
         : (occupancyRate > 0 ? occupancyRate : 0)
 
       const realAlerts: Alert[] = []
@@ -236,7 +270,7 @@ export default function SalonDashboard() {
       }
 
       // 2. Agendamentos Pendentes (Status scheduled aguardando confirmação)
-      const pendingAppts = todayAppts.filter((a: any) => a.status === 'scheduled')
+      const pendingAppts = todayAppts.filter((a: { status: string }) => a.status === 'scheduled')
       if (pendingAppts.length > 0) {
         realAlerts.push({
           title: `${pendingAppts.length} agendamentos pendentes.`,
@@ -244,15 +278,8 @@ export default function SalonDashboard() {
         })
       }
 
-      // 3. Aniversariantes de hoje
-      const todayMonth = String(now.getMonth() + 1).padStart(2, '0')
-      const todayDay = String(now.getDate()).padStart(2, '0')
-      const { data: birthdayClients } = await (supabase as any)
-        .from('clients')
-        .select('id, name, birth_date')
-        .eq('salon_id', salonId)
-
-      const birthdays = birthdayClients?.filter((c: any) => {
+      // 3. Aniversariantes de hoje (already fetched in parallel)
+      const birthdays = birthdayClients?.filter((c: { birth_date?: string }) => {
         if (!c.birth_date) return false
         const d = new Date(c.birth_date)
         return (d.getMonth() + 1) === Number(todayMonth) && d.getDate() === Number(todayDay)
@@ -265,13 +292,8 @@ export default function SalonDashboard() {
         })
       }
 
-      // 4. Estoque Baixo
-      const { data: lowStockProducts } = await (supabase as any)
-        .from('products')
-        .select('id, stock_quantity, min_stock')
-        .eq('salon_id', salonId)
-
-      const lowStock = lowStockProducts?.filter((p: any) => p.stock_quantity <= p.min_stock) || []
+      // 4. Estoque Baixo (already fetched in parallel)
+      const lowStock = lowStockProducts?.filter((p: { stock_quantity: number; min_stock: number }) => p.stock_quantity <= p.min_stock) || []
       if (lowStock.length > 0) {
         realAlerts.push({
           title: `${lowStock.length} produto(s) com estoque baixo.`,
