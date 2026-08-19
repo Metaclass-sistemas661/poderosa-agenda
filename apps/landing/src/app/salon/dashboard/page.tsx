@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
+import { useSalonId } from '@/hooks/useSalonContext'
 import { ArrowUpRight, ArrowDownRight, Calendar, Bell, Sparkles, Loader2, RefreshCw, Receipt, ChevronDown } from 'lucide-react'
 import {
   AreaChart,
@@ -49,16 +50,13 @@ const COLORS = {
 export default function SalonDashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [salonId, setSalonId] = useState<string | null>(null)
+  // PERF-002: Use shared useSalonId hook instead of duplicating tenant resolution
+  const { salonId, isLoading: isSalonLoading } = useSalonId()
   const [isEditingTarget, setIsEditingTarget] = useState(false)
   const [tempTarget, setTempTarget] = useState('15000')
   const [currentAlertIndex, setCurrentAlertIndex] = useState(0)
   const [chartPeriod, setChartPeriod] = useState(15)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-
-  useEffect(() => {
-    loadSalonId()
-  }, [])
 
   // Carrossel automático para os alertas
   useEffect(() => {
@@ -70,7 +68,7 @@ export default function SalonDashboard() {
   }, [data?.alerts])
 
   useEffect(() => {
-    if (salonId) {
+    if (salonId && !isSalonLoading) {
       fetchData()
 
       // Enterprise Solution: Assinatura Realtime para atualizar o dashboard ao vivo
@@ -91,19 +89,9 @@ export default function SalonDashboard() {
         supabase.removeChannel(channel)
       }
     }
-  }, [salonId, chartPeriod])
+  }, [salonId, isSalonLoading, chartPeriod])
 
-  const loadSalonId = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: adminUser } = await (supabase as any)
-        .from('admin_users')
-        .select('salon_id')
-        .eq('user_id', session.user.id)
-        .single()
-      if (adminUser?.salon_id) setSalonId(adminUser.salon_id)
-    }
-  }
+  // PERF-002: Removed loadSalonId - now using shared useSalonId hook
 
   const fetchData = async () => {
     setIsLoading(true)
