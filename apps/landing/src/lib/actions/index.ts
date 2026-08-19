@@ -440,7 +440,7 @@ export async function existsInTenant(
     id: string
 ): Promise<boolean> {
     const { data } = await ctx.supabase
-        .from(tableName)
+        .from(tableName as any)
         .select('id')
         .eq('id', id)
         .eq('salon_id', ctx.tenant.salonId)
