@@ -3,6 +3,7 @@
 import { useRef, useState, useMemo } from 'react'
 import { motion, useInView } from 'framer-motion'
 import { Check, Star, ArrowRight, Calendar, Users, BarChart3, MessageSquare } from 'lucide-react'
+import Link from 'next/link'
 
 export function Pricing({ id = 'planos' }: { id?: string }) {
   const sectionRef = useRef<HTMLElement>(null)
@@ -136,10 +137,12 @@ export function Pricing({ id = 'planos' }: { id?: string }) {
               </div>
 
               {/* CTA Button */}
-              <button className="w-full py-4 bg-white text-primary-600 rounded-2xl font-bold text-lg hover:bg-slate-50 transition-colors shadow-lg shadow-white/10 flex items-center justify-center gap-2 group">
-                Assinar Agora
-                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-              </button>
+              <Link href="/cadastro" className="w-full">
+                <button className="w-full py-4 bg-white text-primary-600 rounded-2xl font-bold text-lg hover:bg-slate-50 transition-colors shadow-lg shadow-white/10 flex items-center justify-center gap-2 group">
+                  Assinar Agora
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                </button>
+              </Link>
               
               <p className="text-center text-xs font-medium text-white/70 mt-6">
                 Cancele a qualquer momento. Sem surpresas.

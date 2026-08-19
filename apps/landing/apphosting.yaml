@@ -57,3 +57,13 @@ env:
   # Server-side service role key for Admin/Provisioning tasks
   - variable: SUPABASE_SERVICE_ROLE_KEY
     secret: SUPABASE_SERVICE_ROLE_KEY
+
+  # Resend for Emails
+  - variable: RESEND_API_KEY
+    secret: RESEND_API_KEY
+
+  # Mercado Pago
+  - variable: MP_ACCESS_TOKEN
+    secret: MP_ACCESS_TOKEN
+  - variable: MP_WEBHOOK_SECRET
+    secret: MP_WEBHOOK_SECRET

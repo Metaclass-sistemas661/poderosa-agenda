@@ -61,33 +61,26 @@ async function requireServerSuperadmin(): Promise<SuperadminContext> {
 }
 
 // ============================================================================
-// F01 (P0): Approve & Provision Salon
+// F01 (P0): Approve Request & Generate Payment Link
 // ============================================================================
 
 /**
- * Enterprise-grade Server Action for Provisioning a Tenant.
+ * Enterprise-grade Server Action for Approving a Request.
  * 
- * Orchestration pattern (Saga):
+ * New Orchestration pattern (Saga):
  *   1. Authorize (server-side)
  *   2. Pre-validate request status
- *   3. Create Auth Identity (Supabase Auth Admin API)
- *   4. Execute DB Transaction (RPC provision_tenant)
- *   5. On DB failure → Compensate by deleting Auth Identity
- * 
- * Idempotency: Guaranteed by the RPC's FOR UPDATE lock + status guard.
- * Concurrency: DB row lock prevents double-provisioning.
- * Recovery: Auth user is deleted if DB transaction fails.
+ *   3. Generate Mercado Pago Checkout Preference (Link)
+ *   4. Update Request status to 'awaiting_payment'
+ *   5. Send React Email with the payment link
  */
 export async function approveAndProvisionSalon(requestId: string): Promise<ProvisionResult> {
-    // Track auth user ID for compensation in case of failure
-    let createdAuthUserId: string | null = null
-
     try {
         // 1. Authorization: Only superadmins can approve
         const actor = await requireServerSuperadmin()
 
-        const supabaseAdmin = createAdminClient()
         const supabase = createClient()
+        const supabaseAdmin = createAdminClient()
 
         // 2. Pre-check: Ensure request exists and is pending
         const { data: request, error: reqError } = await supabase
@@ -104,80 +97,89 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
             return { success: false, error: 'Esta solicitação já foi processada.' }
         }
 
-        // 3. Provision Auth Identity via Admin Client
-        //    Using inviteUserByEmail: creates the user AND sends an invitation email
-        //    so they can set their own password. No default passwords.
-        const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-            request.email,
-            {
-                data: {
+        // 3. Generate Mercado Pago Preference
+        const preferenceParams = {
+            body: {
+                items: [
+                    {
+                        id: 'plano_basico',
+                        title: DEFAULT_PLAN_TITLE,
+                        quantity: 1,
+                        unit_price: DEFAULT_PLAN_PRICE,
+                        currency_id: 'BRL',
+                    }
+                ],
+                payer: {
                     name: request.owner_name,
-                    salon_name: request.salon_name
-                }
+                    email: request.email,
+                },
+                external_reference: requestId, // We will use this in the webhook to identify the request
+                back_urls: {
+                    success: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/success`,
+                    failure: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/failure`,
+                    pending: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/pending`
+                },
+                auto_return: 'approved'
             }
-        )
+        };
 
-        if (inviteError || !inviteData?.user) {
-            console.error('[PROVISIONING] Auth invite failed:', inviteError)
-            return { success: false, error: 'Falha ao criar conta de autenticação. Verifique se o email já está cadastrado.' }
+        const preferenceResponse = await mpPreference.create(preferenceParams);
+        
+        if (!preferenceResponse.init_point) {
+             console.error('[PROVISIONING] Failed to generate MP link', preferenceResponse);
+             return { success: false, error: 'Falha ao gerar link de pagamento no Mercado Pago.' }
         }
 
-        createdAuthUserId = inviteData.user.id
+        const paymentLink = preferenceResponse.init_point; // Standard checkout link
 
-        // 4. Execute the DB Transaction (RPC)
-        //    This atomically creates: salon, admin_user, updates request status, writes audit log
-        const { data: rpcResult, error: rpcError } = await supabase.rpc('provision_tenant', {
-            p_request_id: requestId,
-            p_auth_user_id: createdAuthUserId,
-            p_actor_id: actor.userId
-        })
+        // 4. Update request status
+        // Using admin client because standard RLS might block this specific state transition
+        const { error: updateError } = await supabaseAdmin
+            .from('access_requests')
+            .update({ status: 'awaiting_payment' })
+            .eq('id', requestId)
 
-        // 5. Compensation: If DB fails, rollback the Auth identity
-        if (rpcError) {
-            console.error('[PROVISIONING] RPC failed:', rpcError.message)
+        if (updateError) {
+             console.error('[PROVISIONING] DB update failed:', updateError)
+             return { success: false, error: 'Falha ao atualizar o status no banco de dados. Verifique a constraint de status.' }
+        }
 
-            const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId)
-            if (deleteError) {
-                console.error('[PROVISIONING] CRITICAL: Compensation failed. Orphaned auth user:', createdAuthUserId)
-            } else {
-                console.log('[PROVISIONING] Compensation successful. Auth user deleted:', createdAuthUserId)
-            }
+        // 5. Send Highly Stylized React Email
+        try {
+             const emailHtml = render(ApprovalPaymentEmail({
+                 salonName: request.salon_name,
+                 paymentLink: paymentLink,
+                 planPrice: DEFAULT_PLAN_PRICE.toFixed(2).replace('.', ',')
+             }));
 
-            // Differentiate between idempotency guard and real errors
-            if (rpcError.message?.includes('already processed')) {
-                return { success: false, error: 'Esta solicitação já foi processada anteriormente.' }
-            }
+             await resend.emails.send({
+                 from: EMAIL_FROM,
+                 to: request.email,
+                 subject: 'Sua conta na Poderosa Agenda foi aprovada! 🎉',
+                 html: emailHtml
+             });
 
-            return { success: false, error: `Erro RPC: ${rpcError.message || JSON.stringify(rpcError)}` }
+             console.log('[PROVISIONING] Email sent successfully to', request.email);
+        } catch (emailErr) {
+             console.error('[PROVISIONING] Failed to send email via Resend', emailErr);
+             // We don't fail the whole action, but we should log it
+             // Real world: we might want a retry queue
         }
 
         revalidatePath('/admin/solicitacoes')
         revalidatePath('/admin/saloes')
         revalidatePath('/admin')
         return { success: true }
-
-    } catch (error) {
-        // If we created an auth user before the error, compensate
-        if (createdAuthUserId) {
-            try {
-                const supabaseAdmin = createAdminClient()
-                await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId)
-                console.log('[PROVISIONING] Exception compensation: Auth user deleted:', createdAuthUserId)
-            } catch (compError) {
-                console.error('[PROVISIONING] CRITICAL: Exception compensation failed:', compError)
-            }
-        }
-
-        const message = error instanceof Error ? error.message : 'Unknown error'
+    } catch (err: any) {
+        console.error('[PROVISIONING] Fatal error:', err)
+        const message = err instanceof Error ? err.message : 'Unknown error'
         if (message === 'UNAUTHENTICATED' || message === 'NO_TENANT_ACCESS') {
             return { success: false, error: 'Acesso não autorizado.' }
         }
         if (message.includes('FORBIDDEN')) {
             return { success: false, error: 'Permissão insuficiente. Apenas superadmins podem aprovar.' }
         }
-
-        console.error('[PROVISIONING] Unexpected error:', error)
-        return { success: false, error: `Erro Interno: ${message}` }
+        return { success: false, error: err.message || 'Erro interno no servidor' }
     }
 }
 
