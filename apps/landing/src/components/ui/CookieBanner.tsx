@@ -39,45 +39,44 @@ export function CookieBanner() {
   if (!visible) return null
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] w-[calc(100%-2rem)] max-w-2xl animate-in slide-in-from-bottom-4 duration-300">
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        {/* Ícone + texto */}
-        <div className="flex items-start gap-3 flex-1">
-          <div className="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
-            <Cookie className="w-5 h-5 text-violet-600" />
+    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-8 md:w-[420px] z-[9999] animate-in slide-in-from-bottom-8 duration-500">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-6 flex flex-col gap-4 relative">
+        <button
+          onClick={() => setVisible(false)}
+          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"
+          aria-label="Fechar"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center flex-shrink-0">
+            <Cookie className="w-5 h-5 text-primary-500" />
           </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900 mb-0.5">Usamos cookies 🍪</p>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Utilizamos cookies para melhorar sua experiência. Saiba mais em nossa{' '}
-              <Link href="/privacidade" className="text-violet-600 hover:underline font-medium">
+          <div className="pr-4">
+            <h3 className="text-base font-semibold text-slate-900 mb-1">Privacidade e Cookies</h3>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Utilizamos cookies para melhorar sua experiência em nossa plataforma, analisar o tráfego e personalizar conteúdo. 
+              Ao continuar, você concorda com nossa{' '}
+              <Link href="/privacidade" className="text-primary-600 hover:text-primary-700 hover:underline font-medium transition-colors">
                 Política de Privacidade
-              </Link>
-              .
+              </Link>.
             </p>
           </div>
         </div>
 
-        {/* Botões */}
-        <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
+        <div className="flex items-center gap-3 w-full mt-2">
           <button
             onClick={reject}
-            className="flex-1 sm:flex-none px-4 py-2 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all duration-200"
           >
-            Rejeitar
+            Rejeitar Não Essenciais
           </button>
           <button
             onClick={accept}
-            className="flex-1 sm:flex-none px-5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-xl transition-opacity shadow-sm"
+            className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-primary-500 hover:bg-primary-600 rounded-xl transition-all duration-200 shadow-sm hover:shadow"
           >
-            Aceitar todos
-          </button>
-          <button
-            onClick={() => setVisible(false)}
-            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Fechar"
-          >
-            <X className="w-4 h-4" />
+            Aceitar Todos
           </button>
         </div>
       </div>

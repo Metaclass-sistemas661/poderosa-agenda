@@ -12,12 +12,7 @@ const faqs = [
   { q: "Posso cancelar quando quiser?", a: "Sim, somos 100% livres de fidelidade. Você pode cancelar sua assinatura a qualquer momento com um único clique." }
 ]
 
-const links = [
-  { name: 'Blog', href: '#' },
-  { name: 'Central de Ajuda', href: '#' },
-  { name: 'Termos de Serviço', href: '#' },
-  { name: 'Privacidade', href: '#' },
-]
+
 
 export function Footer({ className }: { className?: string }) {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null)
