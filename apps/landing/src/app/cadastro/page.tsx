@@ -76,33 +76,56 @@ export default function CadastroPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Prevent double submission
     if (isLoading) return
-    
+
     setIsLoading(true)
     setError('')
 
     try {
-      // PRESERVED: Original Supabase insert logic
-      const { error: insertError } = await (supabase.from('access_requests') as any)
-        .insert({
-          salon_name: formData.salonName,
-          owner_name: formData.ownerName,
-          email: formData.email,
-          phone: formData.phone,
-          city: formData.city,
-          state: formData.state,
-          professionals: formData.professionals,
-          message: formData.message || null,
-          status: 'pending',
-        })
+      // Enterprise: Use RPC function for secure submission with validation
+      // This avoids granting direct INSERT permission to anon users
+      // Type cast needed until database types are regenerated
+      const { data, error: rpcError } = await (supabase.rpc as any)('submit_access_request', {
+        p_salon_name: formData.salonName,
+        p_owner_name: formData.ownerName,
+        p_email: formData.email,
+        p_phone: formData.phone,
+        p_city: formData.city,
+        p_state: formData.state,
+        p_professionals: formData.professionals,
+        p_message: formData.message || null,
+        p_source: 'website'
+      })
 
-      if (insertError) {
-        console.error('Erro ao salvar:', insertError)
+      if (rpcError) {
+        console.error('Erro RPC:', rpcError)
         setError('Não foi possível enviar sua solicitação. Tente novamente.')
+      } else if (data && typeof data === 'object') {
+        // Parse RPC response
+        const response = data as { success: boolean; error?: string; message?: string }
+
+        if (response.success) {
+          setIsSubmitted(true)
+        } else {
+          // Handle specific error types from RPC
+          switch (response.error) {
+            case 'VALIDATION_ERROR':
+              setError(response.message || 'Dados inválidos. Verifique os campos.')
+              break
+            case 'RATE_LIMIT':
+              setError(response.message || 'Você já enviou uma solicitação recentemente.')
+              break
+            case 'DUPLICATE':
+              setError(response.message || 'Já existe uma solicitação com este email.')
+              break
+            default:
+              setError(response.message || 'Erro ao processar solicitação.')
+          }
+        }
       } else {
-        setIsSubmitted(true)
+        setError('Resposta inesperada do servidor. Tente novamente.')
       }
     } catch (err) {
       console.error('Erro:', err)
@@ -125,32 +148,32 @@ export default function CadastroPage() {
   if (isSubmitted) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center relative overflow-hidden bg-white py-8 md:py-12">
-        
+
         {/* Background Image (Full Screen) - fixed para não quebrar no scroll do mobile */}
-        <div 
+        <div
           className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000"
           style={{ backgroundImage: 'url("/images/salon-light-bg.png")' }}
-          aria-hidden="true" 
+          aria-hidden="true"
         />
-        
+
         {/* Soft Light Fade Gradient to blend the box */}
-        <div 
-          className="fixed inset-0 z-0 bg-white/40 sm:bg-white/10 backdrop-blur-md sm:backdrop-blur-sm transition-all" 
-          aria-hidden="true" 
+        <div
+          className="fixed inset-0 z-0 bg-white/40 sm:bg-white/10 backdrop-blur-md sm:backdrop-blur-sm transition-all"
+          aria-hidden="true"
         />
-        <div 
-          className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0.85)_30%,rgba(255,255,255,0.4)_70%,transparent_100%)] pointer-events-none" 
+        <div
+          className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0.85)_30%,rgba(255,255,255,0.4)_70%,transparent_100%)] pointer-events-none"
         />
 
         {/* Content */}
         <div className="relative z-10 w-full max-w-[600px] mx-auto px-6">
-          
+
           {/* Back to home */}
-          <motion.div 
+          <motion.div
             {...fadeIn}
             className="absolute -top-12 left-6 sm:top-6 sm:-left-20 lg:-left-32 z-50"
           >
-            <Link 
+            <Link
               href="/"
               className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 rounded-full px-4 py-2 bg-white/60 hover:bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm hover:shadow-md"
             >
@@ -172,7 +195,7 @@ export default function CadastroPage() {
             <p className="text-slate-600 mb-8">
               Recebemos seus dados. Nossa equipe analisará seu cadastro e entraremos em contato pelo WhatsApp em breve.
             </p>
-            <Link 
+            <Link
               href="/"
               className="inline-flex items-center justify-center px-6 py-3 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-colors"
             >
@@ -189,17 +212,17 @@ export default function CadastroPage() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-[100dvh] flex items-center justify-start relative overflow-hidden bg-white py-8 md:py-12">
-      
+
       {/* Background Image (Full Screen) */}
-      <div 
+      <div
         className="fixed inset-0 z-0 bg-cover bg-right bg-no-repeat transition-opacity duration-1000"
         style={{ backgroundImage: 'url("/images/salon-light-bg.png")' }}
-        aria-hidden="true" 
+        aria-hidden="true"
       />
-      
+
       {/* Soft Light Fade Gradient: Forte na esquerda e sumindo para a direita */}
-      <div 
-        className="fixed inset-0 z-0 bg-gradient-to-r from-white via-white/90 to-transparent sm:via-white/80 backdrop-blur-[2px] sm:backdrop-blur-none transition-all pointer-events-none" 
+      <div
+        className="fixed inset-0 z-0 bg-gradient-to-r from-white via-white/90 to-transparent sm:via-white/80 backdrop-blur-[2px] sm:backdrop-blur-none transition-all pointer-events-none"
       />
 
       {/* Dotted Wave Divider (Reference aesthetic) */}
@@ -211,9 +234,9 @@ export default function CadastroPage() {
 
       {/* Content */}
       <div className="relative z-10 w-full px-6 md:px-12 py-8 flex flex-col justify-between min-h-[100dvh]">
-        
+
         {/* Logo (Top Left Corner) */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -229,7 +252,7 @@ export default function CadastroPage() {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col justify-center w-full max-w-[600px] md:ml-32 lg:ml-48 xl:ml-72 py-12">
-          
+
           {/* Form Card */}
           <motion.div
             initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 20 }}
@@ -238,7 +261,7 @@ export default function CadastroPage() {
             className="w-full bg-white/90 backdrop-blur-2xl border border-white rounded-[32px] p-6 md:p-10 shadow-[0_8px_40px_rgba(0,0,0,0.06)] relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
-            
+
             <div className="relative z-10">
               {/* Header */}
               <div className="text-left mb-8">
@@ -250,218 +273,218 @@ export default function CadastroPage() {
                 </p>
               </div>
 
-          {/* Error Message */}
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              role="alert"
-              className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-start gap-3"
-            >
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" aria-hidden="true" />
-              <span>{error}</span>
-            </motion.div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Salon Name & Owner Name */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="salonName" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
-                  Nome do Salão <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
-                  <input
-                    id="salonName"
-                    type="text"
-                    required
-                    value={formData.salonName}
-                    onChange={(e) => setFormData({ ...formData, salonName: e.target.value })}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
-                    placeholder="Salão Beleza Total"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label htmlFor="ownerName" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
-                  Seu Nome <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
-                  <input
-                    id="ownerName"
-                    type="text"
-                    required
-                    value={formData.ownerName}
-                    onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
-                    placeholder="Maria Silva"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
-                Email <span className="text-red-400">*</span>
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  inputMode="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
-                  placeholder="seu@email.com"
-                />
-              </div>
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
-                WhatsApp <span className="text-red-400">*</span>
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
-                <input
-                  id="phone"
-                  type="tel"
-                  autoComplete="tel"
-                  inputMode="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
-                  placeholder="(11) 99999-9999"
-                />
-              </div>
-            </div>
-
-            {/* City & State */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="city" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
-                  Cidade <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
-                  <input
-                    id="city"
-                    type="text"
-                    required
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
-                    placeholder="São Paulo"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label htmlFor="state" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
-                  Estado <span className="text-red-400">*</span>
-                </label>
-                <select
-                  id="state"
-                  required
-                  value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  className="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-secondary-500/50 focus:border-transparent transition-all duration-200 appearance-none cursor-pointer"
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff40'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px' }}
+              {/* Error Message */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  role="alert"
+                  className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-start gap-3"
                 >
-                  <option value="" className="bg-[#1a1a1b] text-white/50">Selecione</option>
-                  {BRAZILIAN_STATES.map((uf) => (
-                    <option key={uf} value={uf} className="bg-[#1a1a1b] text-white">{uf}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Professionals */}
-            <div>
-              <label htmlFor="professionals" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
-                Quantos profissionais? <span className="text-red-400">*</span>
-              </label>
-              <div className="relative">
-                <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
-                <select
-                  id="professionals"
-                  required
-                  value={formData.professionals}
-                  onChange={(e) => setFormData({ ...formData, professionals: e.target.value })}
-                  className="w-full pl-11 pr-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-secondary-500/50 focus:border-transparent transition-all duration-200 appearance-none cursor-pointer"
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff40'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px' }}
-                >
-                  <option value="" className="bg-[#1a1a1b] text-white/50">Selecione</option>
-                  {PROFESSIONAL_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value} className="bg-[#1a1a1b] text-white">{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Message */}
-            <div>
-              <label htmlFor="message" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
-                Mensagem <span className="text-white/30">(opcional)</span>
-              </label>
-              <div className="relative">
-                <MessageSquare className="absolute left-4 top-3.5 w-4 h-4 text-white/30 pointer-events-none" aria-hidden="true" />
-                <textarea
-                  id="message"
-                  rows={3}
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 resize-none hover:bg-white"
-                  placeholder="Conte-nos um pouco sobre seu salão..."
-                />
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full mt-2 py-4 px-4 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl shadow-lg shadow-primary-500/20 hover:shadow-primary-500/30 transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-primary-500/20 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" />
-                  <span>Enviando...</span>
-                </span>
-              ) : (
-                'Enviar Solicitação'
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>{error}</span>
+                </motion.div>
               )}
-            </button>
-          </form>
 
-          {/* Login Link */}
-          <div className="mt-8 text-center">
-            <p className="text-slate-500 text-sm">
-              Já possui conta?{' '}
-              <Link
-                href="/login"
-                className="text-primary-600 hover:text-primary-700 font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 rounded-sm"
-              >
-                Entrar
-              </Link>
-            </p>
-          </div>
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Salon Name & Owner Name */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="salonName" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
+                      Nome do Salão <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
+                      <input
+                        id="salonName"
+                        type="text"
+                        required
+                        value={formData.salonName}
+                        onChange={(e) => setFormData({ ...formData, salonName: e.target.value })}
+                        className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
+                        placeholder="Salão Beleza Total"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="ownerName" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
+                      Seu Nome <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
+                      <input
+                        id="ownerName"
+                        type="text"
+                        required
+                        value={formData.ownerName}
+                        onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
+                        className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
+                        placeholder="Maria Silva"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
+                    Email <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
+                    <input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      inputMode="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
+                      placeholder="seu@email.com"
+                    />
+                  </div>
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
+                    WhatsApp <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
+                    <input
+                      id="phone"
+                      type="tel"
+                      autoComplete="tel"
+                      inputMode="tel"
+                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
+                      placeholder="(11) 99999-9999"
+                    />
+                  </div>
+                </div>
+
+                {/* City & State */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="city" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
+                      Cidade <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
+                      <input
+                        id="city"
+                        type="text"
+                        required
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
+                        placeholder="São Paulo"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="state" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
+                      Estado <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      id="state"
+                      required
+                      value={formData.state}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 appearance-none cursor-pointer hover:bg-white"
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px' }}
+                    >
+                      <option value="" className="text-slate-500">Selecione</option>
+                      {BRAZILIAN_STATES.map((uf) => (
+                        <option key={uf} value={uf} className="text-slate-900 bg-white">{uf}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Professionals */}
+                <div>
+                  <label htmlFor="professionals" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
+                    Quantos profissionais? <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
+                    <select
+                      id="professionals"
+                      required
+                      value={formData.professionals}
+                      onChange={(e) => setFormData({ ...formData, professionals: e.target.value })}
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 appearance-none cursor-pointer hover:bg-white"
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px' }}
+                    >
+                      <option value="" className="text-slate-500">Selecione</option>
+                      {PROFESSIONAL_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value} className="text-slate-900 bg-white">{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Message */}
+                <div>
+                  <label htmlFor="message" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
+                    Mensagem <span className="text-white/30">(opcional)</span>
+                  </label>
+                  <div className="relative">
+                    <MessageSquare className="absolute left-4 top-3.5 w-4 h-4 text-white/30 pointer-events-none" aria-hidden="true" />
+                    <textarea
+                      id="message"
+                      rows={3}
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 resize-none hover:bg-white"
+                      placeholder="Conte-nos um pouco sobre seu salão..."
+                    />
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full mt-2 py-4 px-4 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl shadow-lg shadow-primary-500/20 hover:shadow-primary-500/30 transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-primary-500/20 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                >
+                  {isLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" />
+                      <span>Enviando...</span>
+                    </span>
+                  ) : (
+                    'Enviar Solicitação'
+                  )}
+                </button>
+              </form>
+
+              {/* Login Link */}
+              <div className="mt-8 text-center">
+                <p className="text-slate-500 text-sm">
+                  Já possui conta?{' '}
+                  <Link
+                    href="/login"
+                    className="text-primary-600 hover:text-primary-700 font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 rounded-sm"
+                  >
+                    Entrar
+                  </Link>
+                </p>
+              </div>
             </div>
           </motion.div>
         </div>
 
         {/* Footer Full Width */}
-        <motion.footer 
+        <motion.footer
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.5 }}
