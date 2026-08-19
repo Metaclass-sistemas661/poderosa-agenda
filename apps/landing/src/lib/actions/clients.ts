@@ -29,6 +29,7 @@ import {
 
 import type { Client } from '@/lib/database/types'
 import { buildSearchOrClause } from '@/lib/search/security'
+import { mapSupabaseError } from '@/lib/errors/mapper'
 
 // ============================================================================
 // CREATE CLIENT
@@ -84,8 +85,8 @@ export const createClientAction = createAction<CreateClientInput, Client>({
     )
 
     if (error || !client) {
-        console.error('[CREATE_CLIENT] Database error:', error)
-        return failure('DATABASE_ERROR', 'Erro ao criar cliente', ctx.requestId)
+        const mappedError = mapSupabaseError(error, 'CREATE_CLIENT')
+        return failure(mappedError.code, mappedError.message, ctx.requestId)
     }
 
     return success(client, ctx.requestId)
@@ -151,8 +152,8 @@ export const updateClientAction = createAction<UpdateClientInput, Client>({
     )
 
     if (error || !client) {
-        console.error('[UPDATE_CLIENT] Database error:', error)
-        return failure('DATABASE_ERROR', 'Erro ao atualizar cliente', ctx.requestId)
+        const mappedError = mapSupabaseError(error, 'UPDATE_CLIENT')
+        return failure(mappedError.code, mappedError.message, ctx.requestId)
     }
 
     return success(client, ctx.requestId)
@@ -196,8 +197,8 @@ export const deleteClientAction = createAction<DeleteInput, { deleted: boolean }
     const { error } = await deleteWithTenantAction(ctx, 'clients', validation.data.id)
 
     if (error) {
-        console.error('[DELETE_CLIENT] Database error:', error)
-        return failure('DATABASE_ERROR', 'Erro ao excluir cliente', ctx.requestId)
+        const mappedError = mapSupabaseError(error, 'DELETE_CLIENT')
+        return failure(mappedError.code, mappedError.message, ctx.requestId)
     }
 
     return success({ deleted: true }, ctx.requestId)
@@ -274,8 +275,8 @@ export const listClientsAction = createAction<ListClientsInput, { clients: Clien
     const { data: clients, error, count } = await query
 
     if (error) {
-        console.error('[LIST_CLIENTS] Database error:', error)
-        return failure('DATABASE_ERROR', 'Erro ao listar clientes', ctx.requestId)
+        const mappedError = mapSupabaseError(error, 'LIST_CLIENTS')
+        return failure(mappedError.code, mappedError.message, ctx.requestId)
     }
 
     return success(

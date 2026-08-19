@@ -10,6 +10,7 @@ import {
   Link as LinkIcon, TrendingUp, TrendingDown, Bell
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 import {
   AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
@@ -81,7 +82,7 @@ export default function ProfissionaisDashboard() {
   const [appointments, setAppointments] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [salonId, setSalonId] = useState<string | null>(null)
+  const { salonId } = useSalonLayout()
 
   // Drawers & Modals
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null)
@@ -149,24 +150,8 @@ export default function ProfissionaisDashboard() {
   }
 
   useEffect(() => {
-    loadSalonId()
-  }, [])
-
-  useEffect(() => {
     if (salonId) fetchData()
   }, [salonId])
-
-  const loadSalonId = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: adminUser } = await (supabase as any)
-        .from('admin_users')
-        .select('salon_id')
-        .eq('user_id', session.user.id)
-        .single()
-      if (adminUser?.salon_id) setSalonId(adminUser.salon_id)
-    }
-  }
 
   const fetchData = async () => {
     if (!salonId) return

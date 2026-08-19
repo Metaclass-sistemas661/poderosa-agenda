@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
+import { mapSupabaseError } from '@/lib/errors/mapper'
 
 interface SalonData {
   id: string
@@ -113,9 +114,9 @@ export function SalonProvider({ children }: SalonProviderProps) {
           }
         }
       }
-    } catch (err: any) {
-      console.error('Error loading salon data:', err)
-      setError(err.message || 'Erro ao carregar dados do salão')
+    } catch (err: unknown) {
+      const mappedError = mapSupabaseError(err, 'loadSalonData')
+      setError(mappedError.message)
     } finally {
       setIsLoading(false)
     }

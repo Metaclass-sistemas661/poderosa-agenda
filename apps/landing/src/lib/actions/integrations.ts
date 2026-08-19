@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { mapSupabaseError } from '@/lib/errors/mapper'
 
 // Chave master de criptografia. Em produção, DEVE vir do .env
 const ENCRYPTION_KEY = process.env.CREDENTIALS_ENCRYPTION_KEY || 'dev_master_key_1234567890123456'
@@ -26,15 +27,15 @@ export async function saveIntegrationCredential(
     })
 
     if (error) {
-      console.error('Error saving credential:', error)
-      return { success: false, error: error.message }
+      const mappedError = mapSupabaseError(error, 'saveIntegrationCredential')
+      return { success: false, error: mappedError.message }
     }
 
     revalidatePath('/salon/configuracoes')
     return { success: true, data }
-  } catch (err: any) {
-    console.error('Action error saving credential:', err)
-    return { success: false, error: err.message || 'Erro interno ao salvar credencial' }
+  } catch (err: unknown) {
+    const mappedError = mapSupabaseError(err, 'saveIntegrationCredential catch')
+    return { success: false, error: mappedError.message }
   }
 }
 
@@ -58,14 +59,14 @@ export async function saveWebhookOutbound(
     })
 
     if (error) {
-      console.error('Error saving webhook:', error)
-      return { success: false, error: error.message }
+      const mappedError = mapSupabaseError(error, 'saveWebhookOutbound')
+      return { success: false, error: mappedError.message }
     }
 
     revalidatePath('/salon/configuracoes')
     return { success: true, secret: generatedSecret, data }
-  } catch (err: any) {
-    console.error('Action error saving webhook:', err)
-    return { success: false, error: err.message || 'Erro interno ao salvar webhook' }
+  } catch (err: unknown) {
+    const mappedError = mapSupabaseError(err, 'saveWebhookOutbound catch')
+    return { success: false, error: mappedError.message }
   }
 }

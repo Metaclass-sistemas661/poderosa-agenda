@@ -16,6 +16,8 @@ import {
   MessageSquare,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { mapSupabaseError } from '@/lib/errors/mapper'
+import { showErrorToast } from '@/lib/errors/toast'
 
 /*
  * ─────────────────────────────────────────────────────────────────────────────
@@ -62,7 +64,6 @@ export default function CadastroPage() {
   const shouldReduceMotion = useReducedMotion()
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
-  const [error, setError] = useState('')
   const [formData, setFormData] = useState({
     salonName: '',
     ownerName: '',
@@ -81,7 +82,6 @@ export default function CadastroPage() {
     if (isLoading) return
 
     setIsLoading(true)
-    setError('')
 
     try {
       // Enterprise: Use RPC function for secure submission with validation
@@ -100,8 +100,8 @@ export default function CadastroPage() {
       })
 
       if (rpcError) {
-        console.error('Erro RPC:', rpcError)
-        setError('Não foi possível enviar sua solicitação. Tente novamente.')
+        const mappedError = mapSupabaseError(rpcError, 'submit_access_request')
+        showErrorToast(mappedError)
       } else if (data && typeof data === 'object') {
         // Parse RPC response
         const response = data as { success: boolean; error?: string; message?: string }
@@ -109,27 +109,16 @@ export default function CadastroPage() {
         if (response.success) {
           setIsSubmitted(true)
         } else {
-          // Handle specific error types from RPC
-          switch (response.error) {
-            case 'VALIDATION_ERROR':
-              setError(response.message || 'Dados inválidos. Verifique os campos.')
-              break
-            case 'RATE_LIMIT':
-              setError(response.message || 'Você já enviou uma solicitação recentemente.')
-              break
-            case 'DUPLICATE':
-              setError(response.message || 'Já existe uma solicitação com este email.')
-              break
-            default:
-              setError(response.message || 'Erro ao processar solicitação.')
-          }
+          // Fallback map if the RPC itself returned a string error code
+          // Although the RPC returns strings like 'VALIDATION_ERROR', mapping helps unify
+          showErrorToast({ code: 'INTERNAL_ERROR', message: response.message || 'Erro ao processar solicitação.', retryable: true })
         }
       } else {
-        setError('Resposta inesperada do servidor. Tente novamente.')
+        showErrorToast({ code: 'INTERNAL_ERROR', message: 'Resposta inesperada do servidor. Tente novamente.', retryable: true })
       }
     } catch (err) {
-      console.error('Erro:', err)
-      setError('Erro de conexão. Verifique sua internet e tente novamente.')
+      const mappedError = mapSupabaseError(err, 'submit_access_request catch')
+      showErrorToast(mappedError)
     }
 
     setIsLoading(false)
@@ -272,19 +261,6 @@ export default function CadastroPage() {
                   Preencha os dados abaixo e entraremos em contato.
                 </p>
               </div>
-
-              {/* Error Message */}
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  role="alert"
-                  className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-start gap-3"
-                >
-                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                  <span>{error}</span>
-                </motion.div>
-              )}
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-5">

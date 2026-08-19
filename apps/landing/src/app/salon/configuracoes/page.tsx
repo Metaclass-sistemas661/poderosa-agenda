@@ -39,6 +39,7 @@ import {
   Plug
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAppearance } from '@/contexts/AppearanceContext'
@@ -105,7 +106,7 @@ export default function ConfiguracoesPage() {
   const [activeSection, setActiveSection] = useState('profile')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [salonId, setSalonId] = useState<string | null>(null)
+  const { salonId } = useSalonLayout()
   const [salon, setSalon] = useState<Salon | null>(null)
   const [settings, setSettings] = useState<SalonSettings | null>(null)
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
@@ -180,45 +181,12 @@ export default function ConfiguracoesPage() {
   // Removido o hook de localStorage para usar Supabase via AppearanceContext
 
   useEffect(() => {
-    loadSalonId()
-  }, [])
-
-  useEffect(() => {
     if (salonId) {
       fetchSalon()
       fetchSettings()
       fetchAdminUsers()
     }
   }, [salonId])
-
-  const loadSalonId = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        const { data: adminUser, error } = await (supabase as any)
-          .from('admin_users')
-          .select('salon_id')
-          .eq('user_id', session.user.id)
-          .single()
-        if (error) {
-          console.error('Erro ao buscar salon_id:', error)
-          return
-        }
-        if (adminUser?.salon_id) {
-          setSalonId(adminUser.salon_id)
-        } else {
-          console.warn('Nenhum salon_id encontrado para o usuário')
-          setIsLoading(false)
-        }
-      } else {
-        console.warn('Nenhuma sessão ativa')
-        setIsLoading(false)
-      }
-    } catch (err) {
-      console.error('Erro ao carregar salonId:', err)
-      setIsLoading(false)
-    }
-  }
 
   const fetchSalon = async () => {
     if (!salonId) return

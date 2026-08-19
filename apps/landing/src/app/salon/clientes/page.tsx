@@ -10,6 +10,7 @@ import {
   TrendingUp, TrendingDown, Clock, Activity, ArrowUpRight
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 interface Client {
@@ -58,7 +59,7 @@ export default function ClientesPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState(urlSearch)
-  const [salonId, setSalonId] = useState<string | null>(null)
+  const { salonId } = useSalonLayout()
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
   const [showCreateDrawer, setShowCreateDrawer] = useState(false)
@@ -79,17 +80,8 @@ export default function ClientesPage() {
     address_zip: '', address_street: '', address_number: '', address_neighborhood: '', address_city: '', address_state: ''
   })
 
-  useEffect(() => { loadSalonId() }, [])
   useEffect(() => { if (salonId) fetchClients() }, [salonId])
   useEffect(() => { setSearchTerm(urlSearch) }, [urlSearch])
-
-  const loadSalonId = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: adminUser } = await (supabase as any).from('admin_users').select('salon_id').eq('user_id', session.user.id).single()
-      if (adminUser?.salon_id) setSalonId(adminUser.salon_id)
-    }
-  }
 
   const fetchClients = async () => {
     if (!salonId) return

@@ -26,8 +26,9 @@ import {
   CheckCircle,
   Headphones
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+import { SalonLayoutContext } from '@/contexts/SalonLayoutContext'
 import { buildSearchOrClause, SEARCH_MAX_LENGTH } from '@/lib/search/security'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -82,7 +83,7 @@ export default function SalonLayout({ children }: { children: React.ReactNode })
 }
 
 function SalonLayoutInner({ children }: { children: React.ReactNode }) {
-  const supabase = createClient()
+  // Usa o singleton supabase importado de @/lib/supabase (unificado com as páginas)
   const router = useRouter()
   const pathname = usePathname()
   const notificationRef = useRef<HTMLDivElement>(null)
@@ -98,10 +99,10 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [searchResults, setSearchResults] = useState<{
-    clients: Array<{ id: string; name: string; phone?: string; email?: string }>
-    services: Array<{ id: string; name: string; price: number; category?: string }>
-    professionals: Array<{ id: string; name: string; specialty?: string }>
-    appointments: Array<{ id: string; client_name: string; service_name: string; scheduled_date: string; scheduled_time: string }>
+    clients: Array<{ id: string; name: string; phone?: string | null; email?: string | null }>
+    services: Array<{ id: string; name: string; price: number; category?: string | null }>
+    professionals: Array<{ id: string; name: string; specialty?: string[] | null }>
+    appointments: Array<{ id: string; client_name: string | null; service_name: string | null; scheduled_date: string; scheduled_time: string }>
   }>({ clients: [], services: [], professionals: [], appointments: [] })
   const [isSearching, setIsSearching] = useState(false)
 
@@ -443,7 +444,7 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
           .from('professionals')
           .select('id, name, specialty')
           .eq('salon_id', user.salon_id)
-          .eq('is_active', true)
+          .eq('status', 'active')
           .or(professionalsOrClause)
           .limit(5)
 
@@ -799,7 +800,7 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="dark:text-white light:text-gray-900 text-sm font-medium truncate">{pro.name}</p>
-                                    <p className="dark:text-gray-500 light:text-gray-500 text-xs truncate">{pro.specialty || 'Profissional'}</p>
+                                    <p className="dark:text-gray-500 light:text-gray-500 text-xs truncate">{pro.specialty?.join(', ') || 'Profissional'}</p>
                                   </div>
                                 </button>
                               ))}
@@ -821,7 +822,7 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
                                   onClick={() => {
                                     setSearchQuery('')
                                     setSearchFocused(false)
-                                    router.push(`/salon/agendamentos?search=${encodeURIComponent(apt.client_name)}`)
+                                    router.push(`/salon/agendamentos?search=${encodeURIComponent(apt.client_name || '')}`)
                                   }}
                                   className="w-full flex items-center gap-3 px-3 py-2.5 dark:hover:bg-white/5 light:hover:bg-gray-50 rounded-lg transition-colors text-left"
                                 >
@@ -829,7 +830,7 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
                                     <Calendar className="w-4 h-4 text-white" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="dark:text-white light:text-gray-900 text-sm font-medium truncate">{apt.client_name}</p>
+                                    <p className="dark:text-white light:text-gray-900 text-sm font-medium truncate">{apt.client_name || 'Cliente'}</p>
                                     <p className="dark:text-gray-500 light:text-gray-500 text-xs truncate">
                                       {apt.service_name} • {new Date(apt.scheduled_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às {apt.scheduled_time?.slice(0, 5)}
                                     </p>
@@ -859,7 +860,30 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
         </header>
 
         <main data-lenis-prevent className="flex-1 overflow-y-auto px-4 lg:px-0 pb-6">
-          <div className="bg-[var(--bg-primary)] lg:bg-transparent lg:rounded-2xl">{children}</div>
+          <div className="bg-[var(--bg-primary)] lg:bg-transparent lg:rounded-2xl">
+            {user && salon ? (
+              <SalonLayoutContext.Provider value={{
+                salonId: user.salon_id,
+                user: {
+                  id: user.id,
+                  name: user.name,
+                  email: user.email,
+                  role: user.role,
+                  salon_id: user.salon_id,
+                },
+                salon: {
+                  id: salon.id,
+                  name: salon.name,
+                  plan: salon.plan,
+                  status: salon.status,
+                },
+              }}>
+                {children}
+              </SalonLayoutContext.Provider>
+            ) : (
+              children
+            )}
+          </div>
         </main>
       </div>
 

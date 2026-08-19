@@ -19,6 +19,7 @@ import {
 
 import { z } from 'zod'
 import { buildSearchOrClause } from '@/lib/search/security'
+import { mapSupabaseError } from '@/lib/errors/mapper'
 
 // ============================================================================
 // TYPES
@@ -100,8 +101,8 @@ export const createServiceAction = createAction<CreateServiceInput, Service>({
     )
 
     if (error || !service) {
-        console.error('[CREATE_SERVICE] Database error:', error)
-        return failure('DATABASE_ERROR', 'Erro ao criar serviço', ctx.requestId)
+        const mappedError = mapSupabaseError(error, 'CREATE_SERVICE')
+        return failure(mappedError.code, mappedError.message, ctx.requestId)
     }
 
     return success(service, ctx.requestId)
@@ -150,8 +151,8 @@ export const updateServiceAction = createAction<UpdateServiceInput, Service>({
     )
 
     if (error || !service) {
-        console.error('[UPDATE_SERVICE] Database error:', error)
-        return failure('DATABASE_ERROR', 'Erro ao atualizar serviço', ctx.requestId)
+        const mappedError = mapSupabaseError(error, 'UPDATE_SERVICE')
+        return failure(mappedError.code, mappedError.message, ctx.requestId)
     }
 
     return success(service, ctx.requestId)
@@ -193,8 +194,8 @@ export const deleteServiceAction = createAction<{ id: string }, { deleted: boole
     const { error } = await deleteWithTenantAction(ctx, 'services', validation.data.id)
 
     if (error) {
-        console.error('[DELETE_SERVICE] Database error:', error)
-        return failure('DATABASE_ERROR', 'Erro ao excluir serviço', ctx.requestId)
+        const mappedError = mapSupabaseError(error, 'DELETE_SERVICE')
+        return failure(mappedError.code, mappedError.message, ctx.requestId)
     }
 
     return success({ deleted: true }, ctx.requestId)
@@ -260,8 +261,8 @@ export const listServicesAction = createAction<ListServicesInput, { services: Se
     const { data: services, error, count } = await query
 
     if (error) {
-        console.error('[LIST_SERVICES] Database error:', error)
-        return failure('DATABASE_ERROR', 'Erro ao listar serviços', ctx.requestId)
+        const mappedError = mapSupabaseError(error, 'LIST_SERVICES')
+        return failure(mappedError.code, mappedError.message, ctx.requestId)
     }
 
     return success(

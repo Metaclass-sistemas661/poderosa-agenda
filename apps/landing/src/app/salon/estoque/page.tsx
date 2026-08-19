@@ -21,6 +21,7 @@ import {
   ShoppingCart
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 
 interface Product {
   id: string
@@ -54,7 +55,7 @@ export default function EstoquePage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [showLowStock, setShowLowStock] = useState(false)
-  const [salonId, setSalonId] = useState<string | null>(null)
+  const { salonId } = useSalonLayout()
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [showCreateDrawer, setShowCreateDrawer] = useState(false)
   const [showEditDrawer, setShowEditDrawer] = useState(false)
@@ -77,24 +78,8 @@ export default function EstoquePage() {
   const [editForm, setEditForm] = useState({ ...createForm })
 
   useEffect(() => {
-    loadSalonId()
-  }, [])
-
-  useEffect(() => {
     if (salonId) fetchProducts()
   }, [salonId])
-
-  const loadSalonId = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: adminUser } = await (supabase as any)
-        .from('admin_users')
-        .select('salon_id')
-        .eq('user_id', session.user.id)
-        .single()
-      if (adminUser?.salon_id) setSalonId(adminUser.salon_id)
-    }
-  }
 
   const fetchProducts = async () => {
     if (!salonId) return

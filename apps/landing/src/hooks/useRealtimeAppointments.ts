@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { mapSupabaseError } from '@/lib/errors/mapper'
 
 interface Appointment {
   id: string
@@ -71,9 +72,9 @@ export function useRealtimeAppointments({
       if (fetchError) throw fetchError
 
       setAppointments((data as Appointment[]) || [])
-    } catch (err: any) {
-      console.error('Error fetching appointments:', err)
-      setError(err.message || 'Erro ao carregar agendamentos')
+    } catch (err: unknown) {
+      const mappedError = mapSupabaseError(err, 'fetchAppointments')
+      setError(mappedError.message)
     } finally {
       setIsLoading(false)
     }

@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Lock, Eye, EyeOff, ArrowLeft, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react'
+import { Eye, EyeOff, Lock, CheckCircle, ArrowRight, ArrowLeft, AlertCircle, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { mapSupabaseError } from '@/lib/errors/mapper'
+import { showErrorToast } from '@/lib/errors/toast'
 
 /*
  * ─────────────────────────────────────────────────────────────────────────────
@@ -38,7 +40,6 @@ export default function RedefinirSenhaPage() {
   const [isValidSession, setIsValidSession] = useState<boolean | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [error, setError] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
@@ -82,19 +83,17 @@ export default function RedefinirSenhaPage() {
     e.preventDefault()
     
     if (isLoading) return
-    
-    setError('')
 
     // Validate passwords match
     if (password !== confirmPassword) {
-      setError('As senhas não coincidem.')
+      showErrorToast({ code: 'VALIDATION_ERROR', message: 'As senhas não coincidem.', retryable: true })
       return
     }
 
     // Validate password strength
     const passwordError = validatePassword(password)
     if (passwordError) {
-      setError(passwordError)
+      showErrorToast({ code: 'VALIDATION_ERROR', message: passwordError, retryable: true })
       return
     }
 
@@ -106,12 +105,8 @@ export default function RedefinirSenhaPage() {
       })
 
       if (updateError) {
-        console.error('Update error:', updateError)
-        if (updateError.message.includes('same as')) {
-          setError('A nova senha não pode ser igual à anterior.')
-        } else {
-          setError('Não foi possível atualizar a senha. Tente novamente.')
-        }
+        const mappedError = mapSupabaseError(updateError, 'updateUser')
+        showErrorToast(mappedError)
       } else {
         setIsSuccess(true)
         // Sign out after password change
@@ -122,8 +117,8 @@ export default function RedefinirSenhaPage() {
         }, 3000)
       }
     } catch (err) {
-      console.error('Error:', err)
-      setError('Erro de conexão. Verifique sua internet e tente novamente.')
+      const mappedError = mapSupabaseError(err, 'updateUser catch')
+      showErrorToast(mappedError)
     }
 
     setIsLoading(false)
@@ -289,18 +284,6 @@ export default function RedefinirSenhaPage() {
               Digite sua nova senha abaixo.
             </p>
           </div>
-
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              role="alert"
-              className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-start gap-3"
-            >
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" aria-hidden="true" />
-              <span>{error}</span>
-            </motion.div>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* New Password */}

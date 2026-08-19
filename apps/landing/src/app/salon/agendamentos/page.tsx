@@ -10,6 +10,7 @@ import {
   ShoppingBag, Search
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 
 interface Appointment {
@@ -59,7 +60,7 @@ export default function AgendamentosHealthRatePage() {
 
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0])
   const [selectedProfessionalId, setSelectedProfessionalId] = useState<string | null>(urlProfId || null)
-  const [salonId, setSalonId] = useState<string | null>(null)
+  const { salonId } = useSalonLayout()
   const [showProfDropdown, setShowProfDropdown] = useState(false)
 
   // Modals
@@ -82,16 +83,7 @@ export default function AgendamentosHealthRatePage() {
   const [selectedCheckoutProducts, setSelectedCheckoutProducts] = useState<{ product: any, quantity: number }[]>([])
   const [checkoutSearch, setCheckoutSearch] = useState('')
 
-  useEffect(() => { loadSalonId() }, [])
   useEffect(() => { if (salonId) fetchData() }, [salonId, selectedProfessionalId, filterDate])
-
-  const loadSalonId = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: adminUser } = await (supabase as any).from('admin_users').select('salon_id').eq('user_id', session.user.id).single()
-      if (adminUser?.salon_id) setSalonId(adminUser.salon_id)
-    }
-  }
 
   const fetchData = async () => {
     if (!salonId) return

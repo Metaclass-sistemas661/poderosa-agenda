@@ -19,6 +19,7 @@ import {
   CreditCard
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 
 interface Professional {
   id: string
@@ -62,15 +63,11 @@ export default function ComissoesPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'paid'>('all')
   const [filterProfessional, setFilterProfessional] = useState<string>('all')
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7))
-  const [salonId, setSalonId] = useState<string | null>(null)
+  const { salonId } = useSalonLayout()
   const [showPayModal, setShowPayModal] = useState(false)
   const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-
-  useEffect(() => {
-    loadSalonId()
-  }, [])
 
   useEffect(() => {
     if (salonId) {
@@ -78,18 +75,6 @@ export default function ComissoesPage() {
       fetchCommissions()
     }
   }, [salonId, selectedMonth])
-
-  const loadSalonId = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: adminUser } = await supabase
-        .from('admin_users')
-        .select('salon_id')
-        .eq('user_id', session.user.id)
-        .single()
-      if (adminUser?.salon_id) setSalonId(adminUser.salon_id)
-    }
-  }
 
   const fetchProfessionals = async () => {
     if (!salonId) return

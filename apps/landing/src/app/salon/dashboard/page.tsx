@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
-import { useSalonId } from '@/hooks/useSalonContext'
+import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 import { ArrowUpRight, ArrowDownRight, Calendar, Bell, Sparkles, Loader2, RefreshCw, Receipt, ChevronDown } from 'lucide-react'
 import {
   AreaChart,
@@ -50,8 +50,9 @@ const COLORS = {
 export default function SalonDashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  // PERF-002: Use shared useSalonId hook instead of duplicating tenant resolution
-  const { salonId, isLoading: isSalonLoading } = useSalonId()
+  // PERF-002: Use centralized SalonLayoutContext — zero additional queries
+  const { salonId } = useSalonLayout()
+  const isSalonLoading = false // salonId is always available from layout context
   const [isEditingTarget, setIsEditingTarget] = useState(false)
   const [tempTarget, setTempTarget] = useState('15000')
   const [currentAlertIndex, setCurrentAlertIndex] = useState(0)

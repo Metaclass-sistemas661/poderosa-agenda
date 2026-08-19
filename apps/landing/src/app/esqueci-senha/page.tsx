@@ -5,6 +5,8 @@ import { motion, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
 import { Mail, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { mapSupabaseError } from '@/lib/errors/mapper'
+import { showErrorToast } from '@/lib/errors/toast'
 
 /*
  * ─────────────────────────────────────────────────────────────────────────────
@@ -30,7 +32,6 @@ export default function EsqueciSenhaPage() {
   const shouldReduceMotion = useReducedMotion()
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
-  const [error, setError] = useState('')
   const [email, setEmail] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,7 +40,6 @@ export default function EsqueciSenhaPage() {
     if (isLoading) return
     
     setIsLoading(true)
-    setError('')
 
     try {
       // Supabase password reset - sends email with magic link
@@ -48,16 +48,15 @@ export default function EsqueciSenhaPage() {
       })
 
       if (resetError) {
-        // Safe error message - don't reveal if email exists
-        console.error('Reset error:', resetError)
-        setError('Não foi possível enviar o email. Tente novamente.')
+        const mappedError = mapSupabaseError(resetError, 'resetPassword')
+        showErrorToast(mappedError)
       } else {
         // Always show success to prevent email enumeration
         setIsSubmitted(true)
       }
     } catch (err) {
-      console.error('Error:', err)
-      setError('Erro de conexão. Verifique sua internet e tente novamente.')
+      const mappedError = mapSupabaseError(err, 'resetPassword catch')
+      showErrorToast(mappedError)
     }
 
     setIsLoading(false)
@@ -174,19 +173,6 @@ export default function EsqueciSenhaPage() {
               Digite seu email e enviaremos um link para redefinir sua senha.
             </p>
           </div>
-
-          {/* Error */}
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              role="alert"
-              className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-start gap-3"
-            >
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" aria-hidden="true" />
-              <span>{error}</span>
-            </motion.div>
-          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">

@@ -9,6 +9,7 @@ import {
   TrendingUp, TrendingDown, Eye, Filter, MoreHorizontal, ArrowRight, Star, Sparkles, Calendar
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie
@@ -54,7 +55,7 @@ export default function ServicosDashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState(urlSearch)
   const [chartFilter, setChartFilter] = useState('30d')
-  const [salonId, setSalonId] = useState<string | null>(null)
+  const { salonId } = useSalonLayout()
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   
   // Drawers & Modals
@@ -75,25 +76,22 @@ export default function ServicosDashboardPage() {
     ...services.map(s => s.category).filter((c): c is string => !!c)
   ])).sort()
 
-  useEffect(() => { loadSalonId() }, [])
   useEffect(() => { if (salonId) fetchData() }, [salonId])
   useEffect(() => { setSearchTerm(urlSearch) }, [urlSearch])
-
-  const loadSalonId = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: adminUser } = await (supabase as any).from('admin_users').select('salon_id').eq('user_id', session.user.id).single()
-      if (adminUser?.salon_id) setSalonId(adminUser.salon_id)
-    }
-  }
 
   const fetchData = async () => {
     if (!salonId) return
     setIsLoading(true)
+
+    // PERF-FIX: Limitar appointments aos últimos 90 dias para analytics
+    // Evita carregar todo o histórico do salão, que pode ter milhares de registros
+    const ninetyDaysAgo = new Date()
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+    const startDate = ninetyDaysAgo.toISOString().split('T')[0]
     
     const [servRes, apptRes, profRes] = await Promise.all([
       (supabase as any).from('services').select('*').eq('salon_id', salonId).order('name'),
-      (supabase as any).from('appointments').select('*').eq('salon_id', salonId),
+      (supabase as any).from('appointments').select('*').eq('salon_id', salonId).gte('scheduled_date', startDate).limit(2000),
       (supabase as any).from('professionals').select('id, name, photo_url').eq('salon_id', salonId)
     ])
 

@@ -15,7 +15,9 @@ import type {
     SupabaseQueryBuilder,
     SupabaseClientWrapper
 } from '@/lib/database/types'
-import type { Database } from '@/lib/database.types'
+import { Database } from '@/lib/database.types'
+import { mapSupabaseError } from '@/lib/errors/mapper'
+import { UserFacingError } from '@/lib/errors/types'
 
 // ============================================================================
 // TENANT HOOK — ENTERPRISE-GRADE CENTRALIZED TENANT RESOLUTION
@@ -219,7 +221,7 @@ export function useTenantQuery<
     const { salonId, isLoading: tenantLoading } = useTenant()
     const [data, setData] = useState<T[] | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const [error, setError] = useState<Error | null>(null)
+    const [error, setError] = useState<UserFacingError | null>(null)
 
     const fetchData = useCallback(async () => {
         if (!salonId) return
@@ -256,7 +258,7 @@ export function useTenantQuery<
             setData(data)
             setError(null)
         } catch (err) {
-            setError(err instanceof Error ? err : new Error('Query failed'))
+            setError(mapSupabaseError(err, 'useTenantQuery'))
             setData(null)
         } finally {
             setIsLoading(false)
@@ -301,14 +303,14 @@ export function useTenantMutation<
 ) {
     const { salonId } = useTenant()
     const [isLoading, setIsLoading] = useState(false)
-    const [error, setError] = useState<Error | null>(null)
+    const [error, setError] = useState<UserFacingError | null>(null)
 
     const mutate = useCallback(async (
         data: Partial<T> | string,
         id?: string
-    ): Promise<{ data: T | null; error: Error | null }> => {
+    ): Promise<{ data: T | null; error: UserFacingError | null }> => {
         if (!salonId) {
-            return { data: null, error: new Error('No salon_id available') }
+            return { data: null, error: mapSupabaseError(new Error('No salon_id available')) }
         }
 
         const supabase = createClient()
@@ -369,9 +371,9 @@ export function useTenantMutation<
 
             return { data: result.data as T, error: null }
         } catch (err) {
-            const error = err instanceof Error ? err : new Error('Mutation failed')
-            setError(error)
-            return { data: null, error }
+            const mappedError = mapSupabaseError(err, `useTenantMutation ${operation}`)
+            setError(mappedError)
+            return { data: null, error: mappedError }
         } finally {
             setIsLoading(false)
         }

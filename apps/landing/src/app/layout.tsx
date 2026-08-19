@@ -35,6 +35,7 @@ export const metadata: Metadata = {
 }
 
 import { SmoothScrollProvider } from '@/components/layout/SmoothScrollProvider'
+import { Toaster } from '@/components/ui/Toaster'
 
 export default function RootLayout({
   children,
@@ -47,6 +48,7 @@ export default function RootLayout({
         <SmoothScrollProvider>
           {children}
           <CookieBanner />
+          <Toaster />
         </SmoothScrollProvider>
       </body>
     </html>

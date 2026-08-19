@@ -12,6 +12,8 @@ import { createClient } from '@/lib/supabase/client'
 import { getTrustedTenantContext, type TenantContext } from '@/lib/auth/tenant'
 import { AuthorizationError } from '@/lib/auth/authorization'
 import type { AdminUser } from '@/lib/database/types'
+import { mapSupabaseError } from '@/lib/errors/mapper'
+import type { DomainErrorCode } from '@/lib/errors/types'
 
 // ============================================================================
 // TYPES
@@ -34,26 +36,12 @@ export interface ActionResult<T = void> {
  * Erro estruturado de Server Action
  */
 export interface ActionError {
-    code: ActionErrorCode
+    code: DomainErrorCode
     message: string
     details?: Record<string, unknown>
     /** Campo com erro (para validação) */
     field?: string
 }
-
-/**
- * Códigos de erro padronizados
- */
-export type ActionErrorCode =
-    | 'UNAUTHORIZED'
-    | 'FORBIDDEN'
-    | 'VALIDATION_ERROR'
-    | 'NOT_FOUND'
-    | 'CONFLICT'
-    | 'DATABASE_ERROR'
-    | 'INTERNAL_ERROR'
-    | 'RATE_LIMITED'
-    | 'TENANT_MISMATCH'
 
 /**
  * Contexto de execução de Server Action
@@ -113,7 +101,7 @@ export function success<T>(data: T, requestId: string): ActionResult<T> {
  * Cria resultado de erro
  */
 export function failure(
-    code: ActionErrorCode,
+    code: DomainErrorCode,
     message: string,
     requestId: string,
     details?: Record<string, unknown>
@@ -240,23 +228,25 @@ export function createAction<TInput, TOutput>(
             return result
 
         } catch (err) {
-            // Log de erro não tratado
-            console.error(`[${requestId}] Unhandled error in ${options.operationName}:`, err)
+            // Usa o mapper para transformar qualquer falha técnica, time-out, ou postgrest 
+            // em uma UserFacingError limpa, evitando vazamento.
+            const mappedError = mapSupabaseError(err, options.operationName)
 
             await logAuditEvent({
                 requestId,
                 operation: options.operationName,
                 status: 'ERROR',
-                errorCode: 'INTERNAL_ERROR',
+                errorCode: mappedError.code,
                 metadata: {
-                    errorMessage: err instanceof Error ? err.message : 'Unknown error'
+                    errorMessage: mappedError.message,
+                    originalError: err instanceof Error ? err.message : 'Unknown error'
                 },
                 duration: Date.now() - startTime
             })
 
             return failure(
-                'INTERNAL_ERROR',
-                'An unexpected error occurred. Please try again.',
+                mappedError.code,
+                mappedError.message,
                 requestId
             )
         }

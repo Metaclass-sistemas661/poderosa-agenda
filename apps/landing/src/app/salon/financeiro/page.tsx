@@ -34,6 +34,7 @@ import {
   PieChart as PieChartIcon
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 
 interface Transaction {
   id: string
@@ -138,7 +139,7 @@ export default function FinanceiroPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all')
   const [filterPeriod, setFilterPeriod] = useState('month')
-  const [salonId, setSalonId] = useState<string | null>(null)
+  const { salonId } = useSalonLayout()
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [showCreateDrawer, setShowCreateDrawer] = useState(false)
   const [showEditDrawer, setShowEditDrawer] = useState(false)
@@ -168,47 +169,40 @@ export default function FinanceiroPage() {
   })
 
   useEffect(() => {
-    loadSalonId()
-  }, [])
-
-  useEffect(() => {
     if (salonId) {
       fetchTransactions()
     }
   }, [salonId, filterPeriod])
 
-  const loadSalonId = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: adminUser } = await supabase
-        .from('admin_users')
-        .select('salon_id')
-        .eq('user_id', session.user.id)
-        .single()
-      if (adminUser?.salon_id) setSalonId(adminUser.salon_id)
-    }
-  }
-
+  // FIX: getDateRange usava now.setDate() que MUTA o objeto Date original.
+  // Criando novas instâncias de Date para cada case para evitar side effects.
   const getDateRange = () => {
-    const now = new Date()
     let startDate: string
 
     switch (filterPeriod) {
       case 'today':
-        startDate = now.toISOString().split('T')[0]
+        startDate = new Date().toISOString().split('T')[0]
         break
-      case 'week':
-        const weekAgo = new Date(now.setDate(now.getDate() - 7))
-        startDate = weekAgo.toISOString().split('T')[0]
+      case 'week': {
+        const weekDate = new Date()
+        weekDate.setDate(weekDate.getDate() - 7)
+        startDate = weekDate.toISOString().split('T')[0]
         break
-      case 'month':
+      }
+      case 'month': {
+        const now = new Date()
         startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
         break
-      case 'year':
+      }
+      case 'year': {
+        const now = new Date()
         startDate = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]
         break
-      default:
+      }
+      default: {
+        const now = new Date()
         startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+      }
     }
 
     return startDate

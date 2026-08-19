@@ -25,6 +25,7 @@ import {
   Wallet
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 
 interface Transaction {
   id: string
@@ -77,7 +78,7 @@ export default function CaixaPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all')
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0])
-  const [salonId, setSalonId] = useState<string | null>(null)
+  const { salonId } = useSalonLayout()
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [showCreateDrawer, setShowCreateDrawer] = useState(false)
   const [showEditDrawer, setShowEditDrawer] = useState(false)
@@ -106,24 +107,8 @@ export default function CaixaPage() {
   })
 
   useEffect(() => {
-    loadSalonId()
-  }, [])
-
-  useEffect(() => {
     if (salonId) fetchTransactions()
   }, [salonId, filterDate])
-
-  const loadSalonId = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: adminUser } = await (supabase as any)
-        .from('admin_users')
-        .select('salon_id')
-        .eq('user_id', session.user.id)
-        .single()
-      if (adminUser?.salon_id) setSalonId(adminUser.salon_id)
-    }
-  }
 
   const fetchTransactions = async () => {
     if (!salonId) return

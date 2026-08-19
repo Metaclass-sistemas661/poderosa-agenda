@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { mapSupabaseError } from '@/lib/errors/mapper'
+import { showErrorToast } from '@/lib/errors/toast'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -16,13 +18,11 @@ export default function LoginPage() {
     email: '',
     password: '',
   })
-  const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (isLoading) return
     setIsLoading(true)
-    setError('')
 
     // Create Supabase client with cookie-based auth (@supabase/ssr)
     const supabase = createClient()
@@ -34,13 +34,8 @@ export default function LoginPage() {
       })
 
       if (authError) {
-        if (authError.message === 'Invalid login credentials') {
-          setError('Email ou senha incorretos.')
-        } else if (authError.message === 'Email not confirmed') {
-          setError('Email não confirmado. Verifique sua caixa de entrada.')
-        } else {
-          setError('Não foi possível realizar o login. Tente novamente.')
-        }
+        const mappedError = mapSupabaseError(authError, 'login')
+        showErrorToast(mappedError)
         setIsLoading(false)
         return
       }
@@ -61,12 +56,13 @@ export default function LoginPage() {
             router.push('/salon')
           }
         } else {
-          setError('Você não tem permissão para acessar. Entre em contato com o administrador.')
+          showErrorToast({ code: 'AUTHORIZATION_ERROR', message: 'Você não tem permissão para acessar.', action: 'Entre em contato com o administrador.', retryable: false })
           setIsLoading(false)
         }
       }
-    } catch {
-      setError('Erro de conexão. Verifique sua internet e tente novamente.')
+    } catch (err) {
+      const mappedError = mapSupabaseError(err, 'login catch')
+      showErrorToast(mappedError)
       setIsLoading(false)
     }
   }
@@ -140,18 +136,6 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              {/* Error Message */}
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  role="alert"
-                  className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-medium text-center"
-                >
-                  {error}
-                </motion.div>
-              )}
-
               {/* Login Form */}
               <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Email Field */}
@@ -172,7 +156,6 @@ export default function LoginPage() {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-5 py-3.5 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
                     placeholder="seu@email.com"
-                    aria-describedby={error ? 'login-error' : undefined}
                   />
                 </div>
 
@@ -194,7 +177,6 @@ export default function LoginPage() {
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       className="w-full px-5 py-3.5 pr-12 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
                       placeholder="••••••••"
-                      aria-describedby={error ? 'login-error' : undefined}
                     />
                     <button
                       type="button"
