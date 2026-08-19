@@ -177,7 +177,7 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
         }
 
         console.error('[PROVISIONING] Unexpected error:', error)
-        return { success: false, error: 'Ocorreu um erro interno inesperado.' }
+        return { success: false, error: `Erro Interno: ${message}` }
     }
 }
 
@@ -245,8 +245,8 @@ export async function rejectSalonRequest(requestId: string): Promise<ProvisionRe
         if (message === 'UNAUTHENTICATED' || message.includes('FORBIDDEN') || message === 'NO_TENANT_ACCESS') {
             return { success: false, error: 'Acesso não autorizado.' }
         }
-        console.error('[REJECTION] Unexpected error:', error)
-        return { success: false, error: 'Ocorreu um erro interno.' }
+        console.error('[PROVISIONING] Unexpected error rejecting request:', error)
+        return { success: false, error: `Erro Interno: ${message}` }
     }
 }
 
