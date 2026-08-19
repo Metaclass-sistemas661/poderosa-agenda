@@ -148,7 +148,7 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
                 return { success: false, error: 'Esta solicitação já foi processada anteriormente.' }
             }
 
-            return { success: false, error: 'Erro na transação do banco de dados. Operação revertida com segurança.' }
+            return { success: false, error: `Erro RPC: ${rpcError.message || JSON.stringify(rpcError)}` }
         }
 
         revalidatePath('/admin/solicitacoes')
