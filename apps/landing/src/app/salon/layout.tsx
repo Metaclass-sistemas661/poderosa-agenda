@@ -26,7 +26,7 @@ import {
   CheckCircle,
   Headphones
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { SalonLayoutContext } from '@/contexts/SalonLayoutContext'
 import { buildSearchOrClause, SEARCH_MAX_LENGTH } from '@/lib/search/security'
@@ -83,7 +83,7 @@ export default function SalonLayout({ children }: { children: React.ReactNode })
 }
 
 function SalonLayoutInner({ children }: { children: React.ReactNode }) {
-  // Usa o singleton supabase importado de @/lib/supabase (unificado com as páginas)
+  const supabase = createClient()
   const router = useRouter()
   const pathname = usePathname()
   const notificationRef = useRef<HTMLDivElement>(null)
