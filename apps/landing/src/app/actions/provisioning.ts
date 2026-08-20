@@ -3,13 +3,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { mpPreference } from '@/lib/mercadopago'
+import { redeApi, DEFAULT_PLAN_PRICE, DEFAULT_PLAN_TITLE } from '@/lib/rede'
 import { render } from '@react-email/render'
 import ApprovalPaymentEmail from '@/emails/ApprovalPaymentEmail'
 import { resend } from '@/lib/resend'
 
-const DEFAULT_PLAN_TITLE = 'Plano Básico - Poderosa Agenda';
-const DEFAULT_PLAN_PRICE = 59.90;
 const EMAIL_FROM = 'Poderosa Agenda <contato@poderosaagenda.com.br>';
 
 // ============================================================================
@@ -105,40 +103,18 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
             return { success: false, error: 'Esta solicitação já foi processada.' }
         }
 
-        // 3. Generate Mercado Pago Preference
-        const preferenceParams = {
-            body: {
-                items: [
-                    {
-                        id: 'plano_basico',
-                        title: DEFAULT_PLAN_TITLE,
-                        quantity: 1,
-                        unit_price: DEFAULT_PLAN_PRICE,
-                        currency_id: 'BRL',
-                    }
-                ],
-                payer: {
-                    name: request.owner_name,
-                    email: request.email,
-                },
-                external_reference: requestId, // We will use this in the webhook to identify the request
-                back_urls: {
-                    success: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://poderosaagenda.com.br'}/success`,
-                    failure: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://poderosaagenda.com.br'}/failure`,
-                    pending: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://poderosaagenda.com.br'}/pending`
-                },
-                auto_return: 'approved'
-            }
-        };
+        // 3. Generate Rede Checkout Link (Stub)
+        const paymentLink = await redeApi.generateCheckoutLink({
+            amount: DEFAULT_PLAN_PRICE,
+            referenceId: requestId,
+            customerEmail: request.email,
+            customerName: request.owner_name,
+        });
 
-        const preferenceResponse = await mpPreference.create(preferenceParams);
-
-        if (!preferenceResponse.init_point) {
-            console.error('[PROVISIONING] Failed to generate MP link', preferenceResponse);
-            return { success: false, error: 'Falha ao gerar link de pagamento no Mercado Pago.' }
+        if (!paymentLink) {
+            console.error('[PROVISIONING] Failed to generate Rede link');
+            return { success: false, error: 'Falha ao gerar link de pagamento na Rede.' }
         }
-
-        const paymentLink = preferenceResponse.init_point; // Standard checkout link
 
         // 4. Update request status
         // Using admin client because standard RLS might block this specific state transition
