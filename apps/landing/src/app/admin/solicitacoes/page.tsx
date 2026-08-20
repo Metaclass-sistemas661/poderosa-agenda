@@ -384,17 +384,17 @@ export default function SolicitacoesPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[#1a2332] rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto"
+              className="bg-[#1a2332] rounded-2xl p-6 max-w-lg w-full max-h-[90vh] flex flex-col"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <h2 className="text-lg font-bold text-white">Detalhes da Solicitação</h2>
                 <button onClick={() => setSelectedRequest(null)} className="text-gray-400 hover:text-white">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto flex-1 pr-2 custom-scrollbar">
                 <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl">
                   <Building2 className="w-5 h-5 text-emerald-400" />
                   <div>
@@ -475,7 +475,7 @@ export default function SolicitacoesPage() {
 
               {/* Actions */}
               {selectedRequest.status === 'pending' && (
-                <div className="flex gap-3 mt-6 pt-6 border-t border-white/5">
+                <div className="flex gap-3 mt-4 pt-4 border-t border-white/5 flex-shrink-0">
                   <button
                     onClick={() => handleReject(selectedRequest.id)}
                     disabled={actionLoading === selectedRequest.id}

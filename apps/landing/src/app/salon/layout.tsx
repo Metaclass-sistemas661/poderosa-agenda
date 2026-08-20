@@ -311,8 +311,19 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
         return
       }
 
+      // Enterprise: Check salon status (active, inactive, suspended, deleted)
+      const salonData = adminUser.salons as Salon
+      if (salonData) {
+        if (salonData.status === 'inactive' || salonData.status === 'suspended') {
+          // Redirect to blocked page with reason
+          const reason = salonData.status === 'inactive' ? 'SALON_INACTIVE' : 'SALON_SUSPENDED'
+          router.push(`/salon/bloqueado?reason=${reason}&salon=${encodeURIComponent(salonData.name)}`)
+          return
+        }
+      }
+
       setUser(adminUser as AdminUser)
-      setSalon(adminUser.salons as Salon)
+      setSalon(salonData)
       setIsLoading(false)
     } catch (err) {
       router.push('/login')
