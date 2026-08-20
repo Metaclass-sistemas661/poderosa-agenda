@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { resend } from '@/lib/resend';
+import { resend, EMAIL_FROM } from '@/lib/resend';
 
 // Configure this in your .env or platform secrets
 // To trigger this cron securely, append ?key=YOUR_CRON_SECRET
 const CRON_SECRET = process.env.CRON_SECRET || 'dev_cron_secret';
-const EMAIL_FROM = 'Poderosa Agenda <contato@poderosaagenda.com.br>';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -90,7 +89,12 @@ export async function GET(request: Request) {
         });
 
     } catch (err: any) {
-        console.error('[CRON] Fatal error processing queue:', err);
+        console.error('[WEBHOOK] Fatal error processing queue:', err);
         return NextResponse.json({ error: 'Internal Server Error', details: err.message }, { status: 500 });
     }
+}
+
+// Support POST requests from Supabase Webhooks
+export async function POST(request: Request) {
+    return GET(request);
 }

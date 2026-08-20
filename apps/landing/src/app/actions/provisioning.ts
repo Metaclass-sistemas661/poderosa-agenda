@@ -6,9 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { redeApi, DEFAULT_PLAN_PRICE, DEFAULT_PLAN_TITLE } from '@/lib/rede'
 import { render } from '@react-email/render'
 import ApprovalPaymentEmail from '@/emails/ApprovalPaymentEmail'
-import { resend } from '@/lib/resend'
-
-const EMAIL_FROM = 'Poderosa Agenda <contato@poderosaagenda.com.br>';
+import { resend, EMAIL_FROM } from '@/lib/resend'
 
 // ============================================================================
 // Types
@@ -168,8 +166,8 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
                     throw new Error(result.error.message || 'Resend send failed');
                 }
             } catch (sendError: any) {
-                // Direct send failed - fallback to outbox for cron processing
-                console.error('[PROVISIONING] Direct email send failed, falling back to outbox:', sendError);
+                // Direct send failed - fallback to outbox for cron/webhook processing
+                console.error('[PROVISIONING] Direct email send failed. This is often caused by an invalid RESEND_API_KEY or an unverified domain in Resend. Falling back to outbox queue:', sendError);
 
                 const { error: outboxError } = await supabaseAdmin
                     .from('email_outbox')
