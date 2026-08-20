@@ -24,6 +24,7 @@ import {
   FileText
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { getSafeErrorMessage } from '@/lib/errors/toast'
 import type { Json } from '@/lib/database.types'
 
 interface AdminUser {
@@ -325,7 +326,7 @@ export default function UsuariosPage() {
           if (error.code === '23505') {
             setErrors({ email: 'Email ou CPF já cadastrado' })
           } else {
-            setMessage({ type: 'error', text: error.message })
+            setMessage({ type: 'error', text: getSafeErrorMessage(error, 'criar usuário') })
           }
         } else if (data) {
           setUsers(prev => [data, ...prev])
@@ -671,8 +672,8 @@ export default function UsuariosPage() {
                         type="button"
                         onClick={() => setCreateForm({ ...createForm, role: key as AdminUser['role'] })}
                         className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${createForm.role === key
-                            ? 'bg-emerald-500/10 border-emerald-500/50'
-                            : 'bg-[#1a2332] border-white/10 hover:border-white/20'
+                          ? 'bg-emerald-500/10 border-emerald-500/50'
+                          : 'bg-[#1a2332] border-white/10 hover:border-white/20'
                           }`}
                       >
                         <div className={`w-8 h-8 bg-gradient-to-br ${config.gradient} rounded-lg flex items-center justify-center`}>
@@ -854,8 +855,8 @@ export default function UsuariosPage() {
                           type="button"
                           onClick={() => setEditForm({ ...editForm, role: key as AdminUser['role'] })}
                           className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${editForm.role === key
-                              ? 'bg-emerald-500/10 border-emerald-500/50'
-                              : 'bg-[#1a2332] border-white/10 hover:border-white/20'
+                            ? 'bg-emerald-500/10 border-emerald-500/50'
+                            : 'bg-[#1a2332] border-white/10 hover:border-white/20'
                             }`}
                         >
                           <div className={`w-8 h-8 bg-gradient-to-br ${config.gradient} rounded-lg flex items-center justify-center`}>

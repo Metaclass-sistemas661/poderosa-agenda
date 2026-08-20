@@ -32,7 +32,7 @@ interface AccessRequest {
   state: string
   professionals: string
   message: string | null
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'awaiting_payment'
   created_at: string
 }
 
@@ -41,7 +41,7 @@ export default function SolicitacoesPage() {
   const [requests, setRequests] = useState<AccessRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedRequest, setSelectedRequest] = useState<AccessRequest | null>(null)
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'awaiting_payment'>('all')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   // Carregar solicitações
@@ -71,9 +71,9 @@ export default function SolicitacoesPage() {
     try {
       const result = await approveAndProvisionSalon(id)
       if (result.success) {
-        setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r))
+        setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'awaiting_payment' } : r))
         setSelectedRequest(null)
-        toast.success('Solicitação aprovada com sucesso.')
+        toast.success('Solicitação aprovada e aguardando pagamento.')
       } else {
         // Safe PT-BR message - never expose raw server errors
         toast.error('Não foi possível aprovar a solicitação.', {
@@ -130,6 +130,7 @@ export default function SolicitacoesPage() {
   const pendingCount = requests.filter(r => r.status === 'pending').length
   const approvedCount = requests.filter(r => r.status === 'approved').length
   const rejectedCount = requests.filter(r => r.status === 'rejected').length
+  const awaitingPaymentCount = requests.filter(r => r.status === 'awaiting_payment').length
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('pt-BR', {
@@ -143,6 +144,7 @@ export default function SolicitacoesPage() {
 
   const statusConfig = {
     pending: { label: 'Pendente', color: 'bg-amber-500/20 text-amber-400', dot: 'bg-amber-400' },
+    awaiting_payment: { label: 'Aguard. Pagamento', color: 'bg-blue-500/20 text-blue-400', dot: 'bg-blue-400' },
     approved: { label: 'Aprovada', color: 'bg-emerald-500/20 text-emerald-400', dot: 'bg-emerald-400' },
     rejected: { label: 'Rejeitada', color: 'bg-red-500/20 text-red-400', dot: 'bg-red-400' },
   }

@@ -21,6 +21,7 @@ import {
   ShoppingCart
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { getSafeErrorMessage } from '@/lib/errors/toast'
 import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 
 interface Product {
@@ -132,7 +133,7 @@ export default function EstoquePage() {
       }
     } catch (err: any) {
       console.error('Erro:', err)
-      setMessage({ type: 'error', text: err.message || 'Erro ao criar produto' })
+      setMessage({ type: 'error', text: getSafeErrorMessage(err, 'criar produto') })
     }
 
     setIsSaving(false)

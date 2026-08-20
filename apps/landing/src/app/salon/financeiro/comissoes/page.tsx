@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
+import {
   Percent,
   Search,
   Loader2,
@@ -19,6 +19,7 @@ import {
   CreditCard
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { getSafeErrorMessage } from '@/lib/errors/toast'
 import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 
 interface Professional {
@@ -164,8 +165,8 @@ export default function ComissoesPage() {
       if (error) throw error
 
       // Atualizar estado local
-      setCommissions(prev => prev.map(c => 
-        c.id === selectedCommission.id 
+      setCommissions(prev => prev.map(c =>
+        c.id === selectedCommission.id
           ? { ...c, status: 'paid', paid_at: new Date().toISOString() }
           : c
       ))
@@ -174,7 +175,7 @@ export default function ComissoesPage() {
       setShowPayModal(false)
     } catch (err: any) {
       console.error('Erro:', err)
-      setMessage({ type: 'error', text: err.message || 'Erro ao registrar pagamento' })
+      setMessage({ type: 'error', text: getSafeErrorMessage(err, 'registrar pagamento') })
     }
 
     setIsSaving(false)
@@ -184,7 +185,7 @@ export default function ComissoesPage() {
   const filteredCommissions = commissions.filter(c => {
     const matchSearch = searchTerm === '' ||
       c.professional_name.toLowerCase().includes(searchTerm.toLowerCase())
-    
+
     const matchStatus = filterStatus === 'all' || c.status === filterStatus
     const matchProfessional = filterProfessional === 'all' || c.professional_id === filterProfessional
 
@@ -207,9 +208,8 @@ export default function ComissoesPage() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-20 right-4 z-[100] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg ${
-              message.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
-            } text-white`}
+            className={`fixed top-20 right-4 z-[100] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg ${message.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
+              } text-white`}
           >
             {message.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
             <span className="text-sm font-medium">{message.text}</span>
@@ -223,7 +223,7 @@ export default function ComissoesPage() {
           <h1 className="text-2xl font-bold text-white">Comissões</h1>
           <p className="text-gray-400 text-sm">Gestão de comissões dos profissionais</p>
         </div>
-        
+
         <button onClick={fetchCommissions} disabled={isLoading} className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50">
           <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
         </button>
@@ -305,31 +305,28 @@ export default function ComissoesPage() {
         <div className="flex gap-2">
           <button
             onClick={() => setFilterStatus('all')}
-            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-              filterStatus === 'all'
+            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${filterStatus === 'all'
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                 : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
-            }`}
+              }`}
           >
             Todos
           </button>
           <button
             onClick={() => setFilterStatus('pending')}
-            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-              filterStatus === 'pending'
+            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${filterStatus === 'pending'
                 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
                 : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
-            }`}
+              }`}
           >
             Pendentes
           </button>
           <button
             onClick={() => setFilterStatus('paid')}
-            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-              filterStatus === 'paid'
+            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${filterStatus === 'paid'
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                 : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
-            }`}
+              }`}
           >
             Pagos
           </button>
@@ -378,11 +375,10 @@ export default function ComissoesPage() {
                         {formatDate(commission.period_start)} - {formatDate(commission.period_end)}
                       </p>
                     </div>
-                    <span className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      commission.status === 'paid'
+                    <span className={`px-3 py-1.5 rounded-lg text-xs font-medium ${commission.status === 'paid'
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                         : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                    }`}>
+                      }`}>
                       {commission.status === 'paid' ? 'Pago' : 'Pendente'}
                     </span>
                   </div>
@@ -434,7 +430,7 @@ export default function ComissoesPage() {
           </div>
           <h3 className="text-lg font-bold text-white mb-2">Nenhuma comissão</h3>
           <p className="text-gray-400 text-sm">
-            {searchTerm || filterStatus !== 'all' 
+            {searchTerm || filterStatus !== 'all'
               ? 'Nenhuma comissão encontrada com os filtros aplicados'
               : 'Não há comissões para este período'
             }

@@ -137,11 +137,12 @@ export function Pricing({ id = 'planos' }: { id?: string }) {
               </div>
 
               {/* CTA Button */}
-              <Link href="/cadastro" className="w-full">
-                <button className="w-full py-4 bg-white text-primary-600 rounded-2xl font-bold text-lg hover:bg-slate-50 transition-colors shadow-lg shadow-white/10 flex items-center justify-center gap-2 group">
-                  Assinar Agora
-                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                </button>
+              <Link 
+                href="/cadastro" 
+                className="w-full py-4 bg-white text-primary-600 rounded-2xl font-bold text-lg hover:bg-slate-50 transition-colors shadow-lg shadow-white/10 flex items-center justify-center gap-2 group"
+              >
+                Assinar Agora
+                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </Link>
               
               <p className="text-center text-xs font-medium text-white/70 mt-6">

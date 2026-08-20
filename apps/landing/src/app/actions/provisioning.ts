@@ -3,6 +3,14 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { mpPreference } from '@/lib/mercadopago'
+import { render } from '@react-email/render'
+import ApprovalPaymentEmail from '@/emails/ApprovalPaymentEmail'
+import { resend } from '@/lib/resend'
+
+const DEFAULT_PLAN_TITLE = 'Plano Básico - Poderosa Agenda';
+const DEFAULT_PLAN_PRICE = 59.90;
+const EMAIL_FROM = 'Poderosa Agenda <contato@poderosaagenda.com.br>';
 
 // ============================================================================
 // Types
@@ -146,7 +154,7 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
 
         // 5. Send Highly Stylized React Email
         try {
-             const emailHtml = render(ApprovalPaymentEmail({
+             const emailHtml = await render(ApprovalPaymentEmail({
                  salonName: request.salon_name,
                  paymentLink: paymentLink,
                  planPrice: DEFAULT_PLAN_PRICE.toFixed(2).replace('.', ',')

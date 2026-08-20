@@ -496,18 +496,41 @@ export default function ConfiguracoesPage() {
     }
   }
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        showMessage('error', 'A imagem deve ter no máximo 2MB')
-        return
-      }
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setAppearanceForm(prev => ({ ...prev, logo_url: reader.result as string }))
-      }
-      reader.readAsDataURL(file)
+    if (!file || !salonId) return
+    
+    if (file.size > 2 * 1024 * 1024) {
+      showMessage('error', 'A imagem deve ter no máximo 2MB')
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${salonId}/logo.${fileExt}`
+      
+      // Upload to Supabase Storage (will overwrite if exists because of upsert)
+      const { error: uploadError } = await supabase.storage
+        .from('salon_assets')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      // Get Public URL
+      const { data } = supabase.storage
+        .from('salon_assets')
+        .getPublicUrl(filePath)
+      
+      // Update form state with the public URL
+      setAppearanceForm(prev => ({ ...prev, logo_url: data.publicUrl }))
+      showMessage('success', 'Logo enviada! Salve as preferências para confirmar.')
+    } catch (err: any) {
+      console.error('Erro no upload:', err)
+      showMessage('error', 'Erro ao enviar a imagem. Tente novamente.')
+    } finally {
+      setIsSaving(false)
     }
   }
 

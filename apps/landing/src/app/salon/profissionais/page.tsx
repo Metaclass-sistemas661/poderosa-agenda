@@ -10,6 +10,7 @@ import {
   Link as LinkIcon, TrendingUp, TrendingDown, Bell
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { getSafeErrorMessage } from '@/lib/errors/toast'
 import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 import {
   AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -203,7 +204,7 @@ export default function ProfissionaisDashboard() {
       .single()
 
     if (error) {
-      setMessage({ type: 'error', text: error.message })
+      setMessage({ type: 'error', text: getSafeErrorMessage(error, 'criar profissional') })
     } else if (data) {
       setProfessionals(prev => [...prev, data as unknown as Professional].sort((a, b) => a.name.localeCompare(b.name)))
       setMessage({ type: 'success', text: 'Profissional adicionado!' })

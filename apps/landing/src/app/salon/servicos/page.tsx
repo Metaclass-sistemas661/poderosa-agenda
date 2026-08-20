@@ -3,14 +3,15 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
+import {
   Scissors, Plus, Search, Loader2, RefreshCw, Trash2, Edit3, X,
   CheckCircle, AlertCircle, Save, Clock, DollarSign, Power, Tag,
   TrendingUp, TrendingDown, Eye, Filter, MoreHorizontal, ArrowRight, Star, Sparkles, Calendar
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useSalonLayout } from '@/contexts/SalonLayoutContext'
-import { 
+import { getSafeErrorMessage } from '@/lib/errors/toast'
+import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts'
@@ -48,7 +49,7 @@ const durationOptions = [
 export default function ServicosDashboardPage() {
   const searchParams = useSearchParams()
   const urlSearch = searchParams.get('search') || ''
-  
+
   const [services, setServices] = useState<Service[]>([])
   const [appointments, setAppointments] = useState<any[]>([])
   const [professionals, setProfessionals] = useState<Professional[]>([])
@@ -57,12 +58,12 @@ export default function ServicosDashboardPage() {
   const [chartFilter, setChartFilter] = useState('30d')
   const { salonId } = useSalonLayout()
   const [selectedService, setSelectedService] = useState<Service | null>(null)
-  
+
   // Drawers & Modals
   const [showCreateDrawer, setShowCreateDrawer] = useState(false)
   const [showEditDrawer, setShowEditDrawer] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  
+
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -88,7 +89,7 @@ export default function ServicosDashboardPage() {
     const ninetyDaysAgo = new Date()
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
     const startDate = ninetyDaysAgo.toISOString().split('T')[0]
-    
+
     const [servRes, apptRes, profRes] = await Promise.all([
       (supabase as any).from('services').select('*').eq('salon_id', salonId).order('name'),
       (supabase as any).from('appointments').select('*').eq('salon_id', salonId).gte('scheduled_date', startDate).limit(2000),
@@ -98,7 +99,7 @@ export default function ServicosDashboardPage() {
     if (servRes.data) setServices(servRes.data)
     if (apptRes.data) setAppointments(apptRes.data)
     if (profRes.data) setProfessionals(profRes.data)
-    
+
     setIsLoading(false)
   }
 
@@ -114,7 +115,7 @@ export default function ServicosDashboardPage() {
       commission_rate: createForm.commission_rate ? parseFloat(createForm.commission_rate) : null, is_active: createForm.is_active
     }).select().single()
 
-    if (error) setMessage({ type: 'error', text: error.message })
+    if (error) setMessage({ type: 'error', text: getSafeErrorMessage(error, 'criar serviço') })
     else if (data) {
       setServices(prev => [...prev, data])
       setMessage({ type: 'success', text: 'Serviço criado!' })
@@ -128,8 +129,8 @@ export default function ServicosDashboardPage() {
   const handleEdit = (service: Service) => {
     setSelectedService(service)
     setEditForm({
-      name: service.name, description: service.description || '', 
-      category: categoryOptions.includes(service.category || '') ? service.category || 'Cabelo' : 'Outros', 
+      name: service.name, description: service.description || '',
+      category: categoryOptions.includes(service.category || '') ? service.category || 'Cabelo' : 'Outros',
       customCategory: !categoryOptions.includes(service.category || '') ? service.category || '' : '',
       price: service.price.toString(), duration: service.duration, commission_rate: service.commission_rate?.toString() || '',
       is_active: service.is_active
@@ -141,7 +142,7 @@ export default function ServicosDashboardPage() {
     if (!selectedService) return
     setIsSaving(true)
     const { error } = await (supabase as any).from('services').update({
-      name: editForm.name, description: editForm.description || null, 
+      name: editForm.name, description: editForm.description || null,
       category: (editForm.category === 'Outros' && editForm.customCategory) ? editForm.customCategory : editForm.category,
       price: parseFloat(editForm.price), duration: editForm.duration,
       commission_rate: editForm.commission_rate ? parseFloat(editForm.commission_rate) : null,
@@ -177,7 +178,7 @@ export default function ServicosDashboardPage() {
   // --- Analytical Calculations ---
   const activeServices = services.filter(s => s.is_active).length
   const completedAppts = appointments.filter(a => ['completed', 'confirmed'].includes(a.status))
-  
+
   // Calculate revenue from completed appointments
   const totalRevenue = completedAppts.reduce((sum, appt) => {
     const service = services.find(s => s.id === appt.service_id)
@@ -194,7 +195,7 @@ export default function ServicosDashboardPage() {
     const d = new Date(now)
     d.setDate(now.getDate() - i)
     const dateStr = d.toISOString().split('T')[0]
-    
+
     // Revenue for this day
     const dayAppts = completedAppts.filter(a => a.scheduled_date === dateStr)
     const dayRevenue = dayAppts.reduce((sum, appt) => {
@@ -216,7 +217,7 @@ export default function ServicosDashboardPage() {
     acc[cat] += completedAppts.filter(a => a.service_id === s.id).length
     return acc
   }, {} as Record<string, number>)
-  
+
   const topCategoriesData = Object.entries(categoryStats)
     .map(([name, count]) => ({ name, value: count }))
     .sort((a, b) => b.value - a.value)
@@ -232,14 +233,14 @@ export default function ServicosDashboardPage() {
       rating: 4.5 + Math.random() * 0.5 // Simulated rating
     }
   }).filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  .sort((a, b) => b.revenueGenerated - a.revenueGenerated)
+    .sort((a, b) => b.revenueGenerated - a.revenueGenerated)
 
   // Top Professionals Data
   const topProfessionals = professionals.map(p => {
     const profAppts = completedAppts.filter(a => a.professional_id === p.id)
     const revenue = profAppts.reduce((sum, a) => {
-       const service = services.find(s => s.id === a.service_id)
-       return sum + (service ? service.price : 0)
+      const service = services.find(s => s.id === a.service_id)
+      return sum + (service ? service.price : 0)
     }, 0)
     return { ...p, count: profAppts.length, revenue }
   }).filter(p => p.count > 0).sort((a, b) => b.count - a.count).slice(0, 5)
@@ -250,14 +251,14 @@ export default function ServicosDashboardPage() {
     const key = a.client_id || a.client_name
     if (key) clientVisits[key] = (clientVisits[key] || 0) + 1
   })
-  
+
   const totalClients = Object.keys(clientVisits).length
   const returningClients = Object.values(clientVisits).filter(visits => visits > 1).length
   const retentionRate = totalClients > 0 ? Math.round((returningClients / totalClients) * 100) : 0
-  
+
   const gaugeData = [
     { name: 'Retidos', value: retentionRate, fill: '#10b981' },
-    { name: 'Não Retidos', value: 100 - retentionRate, fill: 'transparent' } 
+    { name: 'Não Retidos', value: 100 - retentionRate, fill: 'transparent' }
   ]
 
   const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899']
@@ -268,7 +269,7 @@ export default function ServicosDashboardPage() {
 
   return (
     <div className="p-4 lg:p-8 space-y-8 bg-slate-50 dark:bg-[#0f1419] min-h-screen text-slate-900 dark:text-white transition-colors lg:rounded-2xl">
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -276,11 +277,11 @@ export default function ServicosDashboardPage() {
             Dashboard <span className="text-slate-300 dark:text-slate-700">/</span> Serviços
           </h1>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-white dark:bg-[#1a2332] border border-slate-200 dark:border-white/5 rounded-xl px-4 py-2.5 shadow-sm">
             <Calendar className="w-4 h-4 text-slate-400 mr-2" />
-            <select 
+            <select
               value={chartFilter}
               onChange={(e) => setChartFilter(e.target.value)}
               className="bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-slate-700 dark:text-white"
@@ -290,7 +291,7 @@ export default function ServicosDashboardPage() {
               <option value="30d" className="dark:bg-[#1a2332]">Últimos 30 dias</option>
             </select>
           </div>
-          
+
           <button onClick={() => setShowCreateDrawer(true)} className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium text-sm rounded-xl shadow-lg shadow-primary-500/20 transition-all">
             <Plus className="w-4 h-4" />
             <span>Novo Serviço</span>
@@ -327,10 +328,10 @@ export default function ServicosDashboardPage() {
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Left Column (Spans 2) */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {/* Main Chart */}
           <div className="bg-white dark:bg-[#1a2332] rounded-3xl p-6 border border-slate-100 dark:border-white/5 shadow-sm">
             <div className="flex justify-between items-center mb-6">
@@ -338,13 +339,13 @@ export default function ServicosDashboardPage() {
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Receita por Serviço</h3>
                 <p className="text-sm text-slate-500">Evolução diária de ganhos</p>
               </div>
-              <button className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><MoreHorizontal className="w-5 h-5"/></button>
+              <button className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><MoreHorizontal className="w-5 h-5" /></button>
             </div>
-            
+
             <div className="flex items-center gap-6 mb-8">
               <div>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalRevenue)}</p>
-                <p className="text-sm text-emerald-500 font-medium flex items-center mt-1"><TrendingUp className="w-4 h-4 mr-1"/> 24.4% vs mês passado</p>
+                <p className="text-sm text-emerald-500 font-medium flex items-center mt-1"><TrendingUp className="w-4 h-4 mr-1" /> 24.4% vs mês passado</p>
               </div>
             </div>
 
@@ -353,14 +354,14 @@ export default function ServicosDashboardPage() {
                 <AreaChart data={revenueChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.5} className="dark:stroke-slate-700" />
                   <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dy={10} />
-                  <RechartsTooltip 
-                    contentStyle={{ backgroundColor: '#fff', borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', color: '#0f1419' }} 
+                  <RechartsTooltip
+                    contentStyle={{ backgroundColor: '#fff', borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', color: '#0f1419' }}
                     itemStyle={{ fontWeight: 'bold' }}
                   />
                   <Area type="monotone" dataKey="Receita" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorReceita)" />
@@ -373,7 +374,7 @@ export default function ServicosDashboardPage() {
           <div className="bg-white dark:bg-[#1a2332] rounded-3xl p-6 border border-slate-100 dark:border-white/5 shadow-sm">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Catálogo de Serviços</h3>
-              
+
               <div className="relative w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
@@ -430,7 +431,7 @@ export default function ServicosDashboardPage() {
                         <button onClick={() => handleEdit(service)} className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100">
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => {setSelectedService(service); setShowDeleteModal(true)}} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100 ml-1">
+                        <button onClick={() => { setSelectedService(service); setShowDeleteModal(true) }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100 ml-1">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
@@ -450,25 +451,25 @@ export default function ServicosDashboardPage() {
 
         {/* Right Column (Spans 1) */}
         <div className="space-y-6">
-          
+
           {/* Most Popular Categories (Bar Chart) */}
           <div className="bg-white dark:bg-[#1a2332] rounded-3xl p-6 border border-slate-100 dark:border-white/5 shadow-sm">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Categorias Populares</h3>
-              <button className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><MoreHorizontal className="w-5 h-5"/></button>
+              <button className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><MoreHorizontal className="w-5 h-5" /></button>
             </div>
             <div className="h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topCategoriesData} layout="vertical" margin={{ top: 0, right: 0, left: 20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorBar" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.4}/>
-                      <stop offset="100%" stopColor="#10b981" stopOpacity={1}/>
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={1} />
                     </linearGradient>
                   </defs>
                   <XAxis type="number" hide />
                   <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 13, fill: '#64748b', fontWeight: 600 }} width={80} />
-                  <RechartsTooltip formatter={(value) => [value, 'Serviços Realizados']} cursor={{fill: 'rgba(148, 163, 184, 0.05)'}} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff', fontWeight: 'bold' }} itemStyle={{ color: '#10b981' }}/>
+                  <RechartsTooltip formatter={(value) => [value, 'Serviços Realizados']} cursor={{ fill: 'rgba(148, 163, 184, 0.05)' }} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff', fontWeight: 'bold' }} itemStyle={{ color: '#10b981' }} />
                   <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={24}>
                     {topCategoriesData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill="url(#colorBar)" />
@@ -483,9 +484,9 @@ export default function ServicosDashboardPage() {
           <div className="bg-white dark:bg-[#1a2332] rounded-3xl p-6 border border-slate-100 dark:border-white/5 shadow-sm flex flex-col items-center justify-center relative overflow-hidden">
             <div className="absolute top-6 left-6 right-6 flex justify-between items-center z-10">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Taxa de Retenção</h3>
-              <button className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><MoreHorizontal className="w-4 h-4"/></button>
+              <button className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><MoreHorizontal className="w-4 h-4" /></button>
             </div>
-            
+
             <div className="h-[180px] w-full mt-8 relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -524,7 +525,7 @@ export default function ServicosDashboardPage() {
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Top Profissionais</h3>
               <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-lg">{chartFilter === '7d' ? '7 dias' : chartFilter === '15d' ? '15 dias' : '30 dias'}</span>
             </div>
-            
+
             <div className="space-y-4">
               {topProfessionals.map((prof, idx) => (
                 <div key={prof.id} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
@@ -586,7 +587,7 @@ export default function ServicosDashboardPage() {
                 <div className="p-6 space-y-8">
                   {/* Informações Básicas */}
                   <div>
-                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Scissors className="w-4 h-4"/> Informações Básicas</h3>
+                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Scissors className="w-4 h-4" /> Informações Básicas</h3>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-bold text-slate-700 dark:text-gray-300 mb-2">Nome do Serviço *</label>
@@ -601,7 +602,7 @@ export default function ServicosDashboardPage() {
 
                   {/* Categoria */}
                   <div>
-                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Tag className="w-4 h-4"/> Categorização</h3>
+                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Tag className="w-4 h-4" /> Categorização</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {categoryOptions.filter(c => c !== 'Outros').map((cat) => (
                         <button key={cat} type="button" onClick={() => setCreateForm({ ...createForm, category: cat })} className={`px-3 py-3 rounded-xl text-sm font-bold transition-all ${createForm.category === cat ? 'bg-primary-500 text-white shadow-md shadow-primary-500/20' : 'bg-slate-50 dark:bg-[#1a2332] text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-white/10 hover:border-primary-500/50'}`}>
@@ -609,7 +610,7 @@ export default function ServicosDashboardPage() {
                         </button>
                       ))}
                       <button type="button" onClick={() => setCreateForm({ ...createForm, category: 'Outros' })} className={`px-3 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1 ${createForm.category === 'Outros' ? 'bg-primary-500 text-white shadow-md' : 'bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-500/20 hover:bg-primary-100 dark:hover:bg-primary-500/20'}`}>
-                        <Plus className="w-4 h-4"/> Nova
+                        <Plus className="w-4 h-4" /> Nova
                       </button>
                     </div>
                     {createForm.category === 'Outros' && (
@@ -622,7 +623,7 @@ export default function ServicosDashboardPage() {
 
                   {/* Preço e Tempo */}
                   <div>
-                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4"/> Precificação e Tempo</h3>
+                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4" /> Precificação e Tempo</h3>
                     <div className="grid grid-cols-2 gap-4 mb-5">
                       <div>
                         <label className="block text-sm font-bold text-slate-700 dark:text-gray-300 mb-2">Valor *</label>
@@ -691,7 +692,7 @@ export default function ServicosDashboardPage() {
                 <div className="p-6 space-y-8">
                   {/* Informações Básicas */}
                   <div>
-                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Edit3 className="w-4 h-4"/> Informações Básicas</h3>
+                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Edit3 className="w-4 h-4" /> Informações Básicas</h3>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-bold text-slate-700 dark:text-gray-300 mb-2">Nome do Serviço *</label>
@@ -706,7 +707,7 @@ export default function ServicosDashboardPage() {
 
                   {/* Categoria */}
                   <div>
-                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Tag className="w-4 h-4"/> Categorização</h3>
+                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Tag className="w-4 h-4" /> Categorização</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {categoryOptions.filter(c => c !== 'Outros').map((cat) => (
                         <button key={cat} type="button" onClick={() => setEditForm({ ...editForm, category: cat })} className={`px-3 py-3 rounded-xl text-sm font-bold transition-all ${editForm.category === cat ? 'bg-primary-500 text-white shadow-md shadow-primary-500/20' : 'bg-slate-50 dark:bg-[#1a2332] text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-white/10 hover:border-primary-500/50'}`}>
@@ -714,7 +715,7 @@ export default function ServicosDashboardPage() {
                         </button>
                       ))}
                       <button type="button" onClick={() => setEditForm({ ...editForm, category: 'Outros' })} className={`px-3 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1 ${editForm.category === 'Outros' ? 'bg-primary-500 text-white shadow-md' : 'bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-500/20 hover:bg-primary-100 dark:hover:bg-primary-500/20'}`}>
-                        <Plus className="w-4 h-4"/> Nova
+                        <Plus className="w-4 h-4" /> Nova
                       </button>
                     </div>
                     {editForm.category === 'Outros' && (
@@ -727,7 +728,7 @@ export default function ServicosDashboardPage() {
 
                   {/* Preço e Tempo */}
                   <div>
-                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4"/> Precificação e Tempo</h3>
+                    <h3 className="text-xs font-black text-primary-500 uppercase tracking-widest mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4" /> Precificação e Tempo</h3>
                     <div className="grid grid-cols-2 gap-4 mb-5">
                       <div>
                         <label className="block text-sm font-bold text-slate-700 dark:text-gray-300 mb-2">Valor *</label>
@@ -798,7 +799,7 @@ export default function ServicosDashboardPage() {
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       {/* Toast */}
       <AnimatePresence>
         {message && (

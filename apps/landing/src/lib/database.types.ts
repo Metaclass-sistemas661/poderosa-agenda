@@ -21,7 +21,7 @@ export interface Database {
           state: string
           professionals: string
           message: string | null
-          status: 'pending' | 'approved' | 'rejected'
+          status: 'pending' | 'approved' | 'rejected' | 'awaiting_payment'
           created_at: string
           updated_at: string
         }
@@ -35,7 +35,7 @@ export interface Database {
           state: string
           professionals: string
           message?: string | null
-          status?: 'pending' | 'approved' | 'rejected'
+          status?: 'pending' | 'approved' | 'rejected' | 'awaiting_payment'
           created_at?: string
           updated_at?: string
         }
@@ -49,7 +49,7 @@ export interface Database {
           state?: string
           professionals?: string
           message?: string | null
-          status?: 'pending' | 'approved' | 'rejected'
+          status?: 'pending' | 'approved' | 'rejected' | 'awaiting_payment'
           created_at?: string
           updated_at?: string
         }
@@ -843,9 +843,17 @@ export interface Database {
         Args: Record<string, never>
         Returns: string
       }
+      provision_tenant: {
+        Args: {
+          p_request_id: string
+          p_auth_user_id: string
+          p_actor_id: string
+        }
+        Returns: void
+      }
     }
     Enums: {
-      request_status: 'pending' | 'approved' | 'rejected'
+      request_status: 'pending' | 'approved' | 'rejected' | 'awaiting_payment'
       salon_status: 'active' | 'inactive' | 'suspended'
       salon_plan: 'basic' | 'pro' | 'enterprise'
       user_role: 'superadmin' | 'admin' | 'manager' | 'support' | 'viewer'

@@ -25,6 +25,7 @@ import {
   Wallet
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { getSafeErrorMessage } from '@/lib/errors/toast'
 import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 
 interface Transaction {
@@ -161,7 +162,7 @@ export default function CaixaPage() {
       }
     } catch (err: any) {
       console.error('Erro:', err)
-      setMessage({ type: 'error', text: err.message || 'Erro ao criar lançamento' })
+      setMessage({ type: 'error', text: getSafeErrorMessage(err, 'criar lançamento') })
     }
 
     setIsSaving(false)

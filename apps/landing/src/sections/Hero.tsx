@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
-import { PlayCircle, ChevronDown } from 'lucide-react'
+import { PlayCircle, ChevronDown, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 
@@ -146,13 +146,13 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="flex flex-wrap gap-4 items-center"
           >
-            <Link href="#demonstracao">
+            <Link href="/cadastro">
               <Button
                 size="lg"
-                className="bg-primary-500 hover:bg-primary-600 text-white border-0 rounded-full px-8 py-6 text-base font-bold transition-all flex items-center gap-2"
+                className="bg-primary-500 hover:bg-primary-600 text-white border-0 rounded-full px-8 py-6 text-base font-bold transition-all flex items-center gap-2 group"
               >
-                <PlayCircle className="w-5 h-5" />
-                Ver demonstração
+                Solicitar Acesso
+                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
           </motion.div>

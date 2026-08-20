@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     // 6. Send Welcome Email
     try {
         const loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/login`;
-        const emailHtml = render(WelcomeEmail({
+        const emailHtml = await render(WelcomeEmail({
             salonName: request.salon_name,
             loginUrl: loginUrl
         }));

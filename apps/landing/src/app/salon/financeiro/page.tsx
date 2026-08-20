@@ -34,6 +34,7 @@ import {
   PieChart as PieChartIcon
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { getSafeErrorMessage } from '@/lib/errors/toast'
 import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 
 interface Transaction {
@@ -264,7 +265,7 @@ export default function FinanceiroPage() {
       }
     } catch (err: any) {
       console.error('Erro:', err)
-      setMessage({ type: 'error', text: err.message || 'Erro ao criar transação' })
+      setMessage({ type: 'error', text: getSafeErrorMessage(err, 'criar transação') })
     }
 
     setIsSaving(false)
