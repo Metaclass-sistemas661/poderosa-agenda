@@ -128,7 +128,11 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
             return { success: false, error: 'Falha ao atualizar o status no banco de dados. Verifique a constraint de status.' }
         }
 
-        // 5. Send Highly Stylized React Email via Outbox
+        // 5. Send Highly Stylized React Email (Hybrid: Sync + Outbox Fallback)
+        // Enterprise pattern: Try to send immediately, fall back to outbox if it fails
+        const emailSubject = 'Sua conta na Poderosa Agenda foi aprovada! 🎉';
+        let emailSent = false;
+
         try {
             const emailHtml = await render(ApprovalPaymentEmail({
                 salonName: request.salon_name,
@@ -136,22 +140,56 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
                 planPrice: DEFAULT_PLAN_PRICE.toFixed(2).replace('.', ',')
             }));
 
-            // Insert into Outbox instead of sending directly
-            const { error: outboxError } = await supabaseAdmin
-                .from('email_outbox')
-                .insert({
-                    to_email: request.email,
-                    subject: 'Sua conta na Poderosa Agenda foi aprovada! 🎉',
-                    html_body: emailHtml,
-                    status: 'pending',
-                    attempts: 0
+            // First, try to send directly via Resend (immediate delivery)
+            try {
+                const result = await resend.emails.send({
+                    from: EMAIL_FROM,
+                    to: request.email,
+                    subject: emailSubject,
+                    html: emailHtml
                 });
 
-            if (outboxError) {
-                console.error('[PROVISIONING] Failed to queue email:', outboxError);
+                if (result.data?.id) {
+                    emailSent = true;
+                    console.log('[PROVISIONING] Email sent successfully via Resend:', result.data.id);
+
+                    // Also insert into outbox as 'sent' for audit trail
+                    await supabaseAdmin
+                        .from('email_outbox')
+                        .insert({
+                            to_email: request.email,
+                            subject: emailSubject,
+                            html_body: emailHtml,
+                            status: 'sent',
+                            attempts: 1
+                        });
+                } else if (result.error) {
+                    console.error('[PROVISIONING] Resend API error:', result.error);
+                    throw new Error(result.error.message || 'Resend send failed');
+                }
+            } catch (sendError: any) {
+                // Direct send failed - fallback to outbox for cron processing
+                console.error('[PROVISIONING] Direct email send failed, falling back to outbox:', sendError);
+
+                const { error: outboxError } = await supabaseAdmin
+                    .from('email_outbox')
+                    .insert({
+                        to_email: request.email,
+                        subject: emailSubject,
+                        html_body: emailHtml,
+                        status: 'pending',
+                        attempts: 0,
+                        last_error: sendError.message || 'Direct send failed'
+                    });
+
+                if (outboxError) {
+                    console.error('[PROVISIONING] Failed to queue email in outbox:', outboxError);
+                } else {
+                    console.log('[PROVISIONING] Email queued in outbox for retry');
+                }
             }
-        } catch (emailErr) {
-            console.error('[PROVISIONING] Email queuing failed', emailErr);
+        } catch (emailErr: any) {
+            console.error('[PROVISIONING] Email rendering/processing failed:', emailErr);
         }
 
         revalidatePath('/admin/solicitacoes')

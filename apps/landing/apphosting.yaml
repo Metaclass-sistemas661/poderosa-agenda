@@ -70,6 +70,17 @@ env:
     secret: RESEND_API_KEY
 
   # ─────────────────────────────────────────────────────────────────────────────
+  # Cron Secret (for email queue processing endpoint)
+  # Used to authenticate calls to /api/cron/process-emails
+  #
+  # Create via:
+  #   firebase apphosting:secrets:set CRON_SECRET --project poderosa-agenda
+  #   firebase apphosting:secrets:grantaccess CRON_SECRET --project poderosa-agenda --backend poderosa-agenda --location us-east4
+  # ─────────────────────────────────────────────────────────────────────────────
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
+
+  # ─────────────────────────────────────────────────────────────────────────────
   # Mercado Pago (DESABILITADO - Aguardando configuração de secrets)
   #
   # Para habilitar, execute:
