@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Provisioning failed' }, { status: 500 });
     }
 
-    // 6. Send Welcome Email
+    // 6. Send Welcome Email via Outbox
     try {
         const loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/login`;
         const emailHtml = await render(WelcomeEmail({
@@ -111,14 +111,22 @@ export async function POST(req: NextRequest) {
             loginUrl: loginUrl
         }));
 
-        await resend.emails.send({
-            from: EMAIL_FROM,
-            to: request.email,
-            subject: 'Pagamento Confirmado - Bem-vindo à Poderosa Agenda! 🚀',
-            html: emailHtml
-        });
+        // Insert into Outbox instead of sending directly
+        const { error: outboxError } = await supabaseAdmin
+            .from('email_outbox')
+            .insert({
+                to_email: request.email,
+                subject: 'Pagamento Confirmado - Bem-vindo à Poderosa Agenda! 🚀',
+                html_body: emailHtml,
+                status: 'pending',
+                attempts: 0
+            });
+            
+        if (outboxError) {
+            console.error('[WEBHOOK] Failed to queue email:', outboxError);
+        }
     } catch (emailErr) {
-        console.error('[WEBHOOK] Welcome email failed', emailErr);
+        console.error('[WEBHOOK] Email queuing failed', emailErr);
     }
 
     return NextResponse.json({ success: true, message: 'Tenant provisioned successfully' });

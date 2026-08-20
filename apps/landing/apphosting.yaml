@@ -62,8 +62,18 @@ env:
   - variable: RESEND_API_KEY
     secret: RESEND_API_KEY
 
-  # Mercado Pago
-  - variable: MP_ACCESS_TOKEN
-    secret: MP_ACCESS_TOKEN
-  - variable: MP_WEBHOOK_SECRET
-    secret: MP_WEBHOOK_SECRET
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Mercado Pago (DESABILITADO - Aguardando configuração de secrets)
+  #
+  # Para habilitar, execute:
+  #   firebase apphosting:secrets:set MP_ACCESS_TOKEN --project poderosa-agenda
+  #   firebase apphosting:secrets:set MP_WEBHOOK_SECRET --project poderosa-agenda
+  #   firebase apphosting:secrets:grantaccess MP_ACCESS_TOKEN --project poderosa-agenda --backend poderosa-agenda --location us-east4
+  #   firebase apphosting:secrets:grantaccess MP_WEBHOOK_SECRET --project poderosa-agenda --backend poderosa-agenda --location us-east4
+  #
+  # Depois, descomente as linhas abaixo:
+  # - variable: MP_ACCESS_TOKEN
+  #   secret: MP_ACCESS_TOKEN
+  # - variable: MP_WEBHOOK_SECRET
+  #   secret: MP_WEBHOOK_SECRET
+  # ─────────────────────────────────────────────────────────────────────────────

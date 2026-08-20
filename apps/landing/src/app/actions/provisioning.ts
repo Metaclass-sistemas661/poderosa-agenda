@@ -152,7 +152,7 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
              return { success: false, error: 'Falha ao atualizar o status no banco de dados. Verifique a constraint de status.' }
         }
 
-        // 5. Send Highly Stylized React Email
+        // 5. Send Highly Stylized React Email via Outbox
         try {
              const emailHtml = await render(ApprovalPaymentEmail({
                  salonName: request.salon_name,
@@ -160,18 +160,22 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
                  planPrice: DEFAULT_PLAN_PRICE.toFixed(2).replace('.', ',')
              }));
 
-             await resend.emails.send({
-                 from: EMAIL_FROM,
-                 to: request.email,
-                 subject: 'Sua conta na Poderosa Agenda foi aprovada! 🎉',
-                 html: emailHtml
-             });
-
-             console.log('[PROVISIONING] Email sent successfully to', request.email);
+             // Insert into Outbox instead of sending directly
+             const { error: outboxError } = await supabaseAdmin
+                 .from('email_outbox')
+                 .insert({
+                     to_email: request.email,
+                     subject: 'Sua conta na Poderosa Agenda foi aprovada! 🎉',
+                     html_body: emailHtml,
+                     status: 'pending',
+                     attempts: 0
+                 });
+                 
+             if (outboxError) {
+                 console.error('[PROVISIONING] Failed to queue email:', outboxError);
+             }
         } catch (emailErr) {
-             console.error('[PROVISIONING] Failed to send email via Resend', emailErr);
-             // We don't fail the whole action, but we should log it
-             // Real world: we might want a retry queue
+             console.error('[PROVISIONING] Email queuing failed', emailErr);
         }
 
         revalidatePath('/admin/solicitacoes')

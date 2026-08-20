@@ -826,6 +826,42 @@ export interface Database {
           }
         ]
       }
+      email_outbox: {
+        Row: {
+          id: string
+          to_email: string
+          subject: string
+          html_body: string
+          status: 'pending' | 'sent' | 'failed'
+          attempts: number
+          last_error: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          to_email: string
+          subject: string
+          html_body: string
+          status?: 'pending' | 'sent' | 'failed'
+          attempts?: number
+          last_error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          to_email?: string
+          subject?: string
+          html_body?: string
+          status?: 'pending' | 'sent' | 'failed'
+          attempts?: number
+          last_error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -857,12 +893,16 @@ export interface Database {
       salon_status: 'active' | 'inactive' | 'suspended'
       salon_plan: 'basic' | 'pro' | 'enterprise'
       user_role: 'superadmin' | 'admin' | 'manager' | 'support' | 'viewer'
+      email_status: 'pending' | 'sent' | 'failed'
     }
     CompositeTypes: {
       [_ in never]: never
     }
   }
 }
+
+export type EmailOutbox = Database['public']['Tables']['email_outbox']['Row']
+export type EmailOutboxInsert = Database['public']['Tables']['email_outbox']['Insert']
 
 // Types helpers
 export type AccessRequest = Database['public']['Tables']['access_requests']['Row']
