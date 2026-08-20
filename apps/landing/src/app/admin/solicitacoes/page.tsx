@@ -75,9 +75,8 @@ export default function SolicitacoesPage() {
         setSelectedRequest(null)
         toast.success('Solicitação aprovada e aguardando pagamento.')
       } else {
-        // Safe PT-BR message - never expose raw server errors
-        toast.error('Não foi possível aprovar a solicitação.', {
-          description: 'Tente novamente em instantes.',
+        toast.error('Erro na aprovação', {
+          description: result.error || 'Tente novamente em instantes.',
         })
       }
     } catch {
