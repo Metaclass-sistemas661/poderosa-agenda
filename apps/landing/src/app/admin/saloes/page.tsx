@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { createSalonManual } from '@/app/actions/provisioning'
+import { changeSalonStatus, deleteSalon } from '@/app/actions/salon-management'
 
 interface Salon {
   id: string
@@ -283,21 +284,19 @@ export default function SaloesPage() {
     setShowDeleteModal(true)
   }
 
+  // Soft delete - usando Server Action (superadmin only via RPC)
   const confirmDelete = async () => {
     if (!selectedSalon) return
     setIsSaving(true)
 
-    const { error } = await supabase
-      .from('salons')
-      .delete()
-      .eq('id', selectedSalon.id)
+    const result = await deleteSalon(selectedSalon.id, 'Excluído pelo administrador')
 
-    if (!error) {
+    if (result.success) {
       setSalons(prev => prev.filter(s => s.id !== selectedSalon.id))
-      setMessage({ type: 'success', text: 'Salão excluído!' })
+      setMessage({ type: 'success', text: 'Salão excluído (soft delete)!' })
       setShowDeleteModal(false)
     } else {
-      setMessage({ type: 'error', text: 'Erro ao excluir.' })
+      setMessage({ type: 'error', text: result.error || 'Erro ao excluir.' })
     }
 
     setIsSaving(false)
@@ -339,16 +338,28 @@ export default function SaloesPage() {
     setTimeout(() => setMessage(null), 5000)
   }
 
-  // Toggle status
+  // Toggle status - usando Server Action (superadmin only via RPC)
   const toggleStatus = async (salon: Salon) => {
     const newStatus = salon.status === 'active' ? 'inactive' : 'active'
-    const { error } = await (supabase.from('salons') as any)
-      .update({ status: newStatus })
-      .eq('id', salon.id)
+    const result = await changeSalonStatus(salon.id, newStatus)
 
-    if (!error) {
+    if (result.success) {
       setSalons(prev => prev.map(s => s.id === salon.id ? { ...s, status: newStatus } : s))
       setMessage({ type: 'success', text: `Salão ${newStatus === 'active' ? 'ativado' : 'desativado'}!` })
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Erro ao alterar status' })
+    }
+    setTimeout(() => setMessage(null), 3000)
+  }
+
+  // Suspender salão (superadmin only)
+  const handleSuspend = async (salon: Salon) => {
+    const result = await changeSalonStatus(salon.id, 'suspended', 'Suspenso pelo administrador')
+    if (result.success) {
+      setSalons(prev => prev.map(s => s.id === salon.id ? { ...s, status: 'suspended' } : s))
+      setMessage({ type: 'success', text: 'Salão suspenso!' })
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Erro ao suspender' })
     }
     setTimeout(() => setMessage(null), 3000)
   }
