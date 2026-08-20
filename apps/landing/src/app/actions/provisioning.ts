@@ -123,19 +123,19 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
                 },
                 external_reference: requestId, // We will use this in the webhook to identify the request
                 back_urls: {
-                    success: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/success`,
-                    failure: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/failure`,
-                    pending: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/pending`
+                    success: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://poderosaagenda.com.br'}/success`,
+                    failure: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://poderosaagenda.com.br'}/failure`,
+                    pending: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://poderosaagenda.com.br'}/pending`
                 },
                 auto_return: 'approved'
             }
         };
 
         const preferenceResponse = await mpPreference.create(preferenceParams);
-        
+
         if (!preferenceResponse.init_point) {
-             console.error('[PROVISIONING] Failed to generate MP link', preferenceResponse);
-             return { success: false, error: 'Falha ao gerar link de pagamento no Mercado Pago.' }
+            console.error('[PROVISIONING] Failed to generate MP link', preferenceResponse);
+            return { success: false, error: 'Falha ao gerar link de pagamento no Mercado Pago.' }
         }
 
         const paymentLink = preferenceResponse.init_point; // Standard checkout link
@@ -148,34 +148,34 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
             .eq('id', requestId)
 
         if (updateError) {
-             console.error('[PROVISIONING] DB update failed:', updateError)
-             return { success: false, error: 'Falha ao atualizar o status no banco de dados. Verifique a constraint de status.' }
+            console.error('[PROVISIONING] DB update failed:', updateError)
+            return { success: false, error: 'Falha ao atualizar o status no banco de dados. Verifique a constraint de status.' }
         }
 
         // 5. Send Highly Stylized React Email via Outbox
         try {
-             const emailHtml = await render(ApprovalPaymentEmail({
-                 salonName: request.salon_name,
-                 paymentLink: paymentLink,
-                 planPrice: DEFAULT_PLAN_PRICE.toFixed(2).replace('.', ',')
-             }));
+            const emailHtml = await render(ApprovalPaymentEmail({
+                salonName: request.salon_name,
+                paymentLink: paymentLink,
+                planPrice: DEFAULT_PLAN_PRICE.toFixed(2).replace('.', ',')
+            }));
 
-             // Insert into Outbox instead of sending directly
-             const { error: outboxError } = await supabaseAdmin
-                 .from('email_outbox')
-                 .insert({
-                     to_email: request.email,
-                     subject: 'Sua conta na Poderosa Agenda foi aprovada! 🎉',
-                     html_body: emailHtml,
-                     status: 'pending',
-                     attempts: 0
-                 });
-                 
-             if (outboxError) {
-                 console.error('[PROVISIONING] Failed to queue email:', outboxError);
-             }
+            // Insert into Outbox instead of sending directly
+            const { error: outboxError } = await supabaseAdmin
+                .from('email_outbox')
+                .insert({
+                    to_email: request.email,
+                    subject: 'Sua conta na Poderosa Agenda foi aprovada! 🎉',
+                    html_body: emailHtml,
+                    status: 'pending',
+                    attempts: 0
+                });
+
+            if (outboxError) {
+                console.error('[PROVISIONING] Failed to queue email:', outboxError);
+            }
         } catch (emailErr) {
-             console.error('[PROVISIONING] Email queuing failed', emailErr);
+            console.error('[PROVISIONING] Email queuing failed', emailErr);
         }
 
         revalidatePath('/admin/solicitacoes')

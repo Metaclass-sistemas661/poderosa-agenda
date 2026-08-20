@@ -58,6 +58,13 @@ env:
   - variable: SUPABASE_SERVICE_ROLE_KEY
     secret: SUPABASE_SERVICE_ROLE_KEY
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Site URL (canonical production domain)
+  # Used for OAuth redirects, webhooks, email links, etc.
+  # ─────────────────────────────────────────────────────────────────────────────
+  - variable: NEXT_PUBLIC_SITE_URL
+    value: https://poderosaagenda.com.br
+
   # Resend for Emails
   - variable: RESEND_API_KEY
     secret: RESEND_API_KEY
