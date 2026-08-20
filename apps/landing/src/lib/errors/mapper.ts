@@ -99,6 +99,32 @@ export function mapSupabaseError(error: unknown, context?: string): UserFacingEr
   if (isPostgrestError(error)) {
     switch (error.code) {
       case '23505': // unique_violation
+        // Check for specific constraint names to provide contextual messages
+        if (error.details && error.details.includes('idx_access_requests_email_pending')) {
+          return {
+            code: 'ALREADY_EXISTS',
+            message: 'Já existe uma solicitação pendente com este email.',
+            retryable: false,
+            action: 'Aguarde a análise da sua solicitação anterior ou entre em contato conosco.',
+          };
+        }
+        if (error.details && (error.details.includes('clients_email') || error.details.includes('email_key'))) {
+          return {
+            code: 'ALREADY_EXISTS',
+            message: 'Este email já está cadastrado no sistema.',
+            retryable: false,
+            action: 'Tente fazer login ou utilize outro email.',
+          };
+        }
+        if (error.details && error.details.includes('phone')) {
+          return {
+            code: 'ALREADY_EXISTS',
+            message: 'Este telefone já está cadastrado no sistema.',
+            retryable: false,
+            action: 'Verifique os dados informados.',
+          };
+        }
+        // Generic unique constraint
         return {
           code: 'ALREADY_EXISTS',
           message: 'Esta informação já está em uso ou já foi cadastrada.',

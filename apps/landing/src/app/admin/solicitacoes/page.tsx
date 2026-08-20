@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { approveAndProvisionSalon, rejectSalonRequest } from '@/app/actions/provisioning'
+import { toast } from 'sonner'
 
 interface AccessRequest {
   id: string
@@ -72,11 +73,17 @@ export default function SolicitacoesPage() {
       if (result.success) {
         setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r))
         setSelectedRequest(null)
+        toast.success('Solicitação aprovada com sucesso.')
       } else {
-        alert(result.error || 'Erro ao aprovar solicitação.')
+        // Safe PT-BR message - never expose raw server errors
+        toast.error('Não foi possível aprovar a solicitação.', {
+          description: 'Tente novamente em instantes.',
+        })
       }
-    } catch (error) {
-      alert('Ocorreu um erro interno ao aprovar.')
+    } catch {
+      toast.error('Ocorreu um erro ao processar a aprovação.', {
+        description: 'Por favor, tente novamente.',
+      })
     } finally {
       setActionLoading(null)
     }
@@ -90,11 +97,17 @@ export default function SolicitacoesPage() {
       if (result.success) {
         setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r))
         setSelectedRequest(null)
+        toast.success('Solicitação rejeitada.')
       } else {
-        alert(result.error || 'Erro ao rejeitar solicitação.')
+        // Safe PT-BR message - never expose raw server errors
+        toast.error('Não foi possível rejeitar a solicitação.', {
+          description: 'Tente novamente em instantes.',
+        })
       }
-    } catch (error) {
-      alert('Ocorreu um erro interno ao rejeitar.')
+    } catch {
+      toast.error('Ocorreu um erro ao processar a rejeição.', {
+        description: 'Por favor, tente novamente.',
+      })
     } finally {
       setActionLoading(null)
     }
@@ -102,14 +115,14 @@ export default function SolicitacoesPage() {
 
   // Filtrar
   const filteredRequests = requests.filter(r => {
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       r.salon_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.owner_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.email.toLowerCase().includes(searchTerm.toLowerCase())
-    
+
     const matchesFilter = filterStatus === 'all' || r.status === filterStatus
-    
+
     return matchesSearch && matchesFilter
   })
 
@@ -142,7 +155,7 @@ export default function SolicitacoesPage() {
           <h1 className="text-2xl font-bold text-white">Solicitações de Acesso</h1>
           <p className="text-gray-400">{pendingCount} solicitações pendentes</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           {/* Refresh */}
           <button
@@ -152,7 +165,7 @@ export default function SolicitacoesPage() {
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
-          
+
           {/* Search */}
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -329,7 +342,7 @@ export default function SolicitacoesPage() {
               {searchTerm || filterStatus !== 'all' ? 'Nenhuma solicitação encontrada' : 'Nenhuma solicitação pendente'}
             </h3>
             <p className="text-gray-400 mb-6">
-              {searchTerm || filterStatus !== 'all' 
+              {searchTerm || filterStatus !== 'all'
                 ? 'Tente alterar os filtros ou o termo de busca.'
                 : 'Quando alguém solicitar acesso pelo formulário de cadastro, as solicitações aparecerão aqui para você aprovar.'}
             </p>
