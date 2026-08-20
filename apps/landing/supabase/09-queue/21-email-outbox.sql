@@ -21,14 +21,23 @@ CREATE TABLE IF NOT EXISTS public.email_outbox (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. Trigger for updated_at
+-- 3. Create updated_at function (if it doesn't exist)
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = timezone('utc'::text, now());
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- 4. Trigger for updated_at
 DROP TRIGGER IF EXISTS handle_email_outbox_updated_at ON public.email_outbox;
 CREATE TRIGGER handle_email_outbox_updated_at
     BEFORE UPDATE ON public.email_outbox
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_updated_at();
 
--- 4. Enable RLS
+-- 5. Enable RLS
 ALTER TABLE public.email_outbox ENABLE ROW LEVEL SECURITY;
 
 -- 5. RLS Policies (Service Role only needs to access it, so we don't expose it to authenticated users for now)
