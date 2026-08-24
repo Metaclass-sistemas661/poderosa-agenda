@@ -81,6 +81,22 @@ env:
     secret: CRON_SECRET
 
   # ─────────────────────────────────────────────────────────────────────────────
+  # Contact Form Configuration
+  #
+  # Email de destino para mensagens do formulário de contato
+  # Create via:
+  #   firebase apphosting:secrets:set CONTACT_FORM_EMAIL --project poderosa-agenda
+  #   (Digite: contato@poderosaagenda.com.br)
+  #   firebase apphosting:secrets:grantaccess CONTACT_FORM_EMAIL --project poderosa-agenda --backend poderosa-agenda --location us-east4
+  # ─────────────────────────────────────────────────────────────────────────────
+  - variable: CONTACT_FORM_EMAIL
+    secret: CONTACT_FORM_EMAIL
+
+  # Habilitar envio de email de confirmação para o usuário (true/false)
+  - variable: CONTACT_FORM_SEND_CONFIRMATION
+    value: "true"
+
+  # ─────────────────────────────────────────────────────────────────────────────
   # Mercado Pago (DESABILITADO - Aguardando configuração de secrets)
   #
   # Para habilitar, execute:

@@ -17,6 +17,7 @@ export default function ContatoPage() {
     email: '',
     subject: 'suporte',
     message: '',
+    website: '', // Honeypot field
   })
   const [formState, setFormState] = useState<FormState>('idle')
   const [result, setResult] = useState<ContactFormResult | null>(null)
@@ -34,7 +35,7 @@ export default function ContatoPage() {
 
       if (response.success) {
         setFormState('success')
-        setFormData({ name: '', email: '', subject: 'suporte', message: '' })
+        setFormData({ name: '', email: '', subject: 'suporte', message: '', website: '' })
       } else {
         setFormState('error')
       }
@@ -52,7 +53,7 @@ export default function ContatoPage() {
     setResult(null)
   }
 
-  const getFieldError = (field: keyof ContactFormData) => result?.fieldErrors?.[field]
+  const getFieldError = (field: 'name' | 'email' | 'phone' | 'subject' | 'message') => result?.fieldErrors?.[field]
 
   return (
     <PublicPageLayout
@@ -233,6 +234,20 @@ export default function ContatoPage() {
                         {getFieldError('message')}
                       </p>
                     )}
+                  </div>
+
+                  {/* Honeypot field - hidden from humans, bots will fill it */}
+                  <div className="absolute left-[-9999px] top-[-9999px]" aria-hidden="true">
+                    <label htmlFor="contact-website">Deixe vazio</label>
+                    <input
+                      id="contact-website"
+                      type="text"
+                      name="website"
+                      value={formData.website || ''}
+                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                      tabIndex={-1}
+                      autoComplete="off"
+                    />
                   </div>
 
                   <button
