@@ -31,8 +31,6 @@ export interface CSPDirectives {
  * - Supabase (API + Auth + Storage + Realtime)
  * - Next.js (scripts inline controlados)
  * - Google Fonts (opcional)
- * - Stripe (se aplicável)
- * 
  * NOTA: 'unsafe-inline' para style-src é necessário para
  * Tailwind CSS e styled-components em produção.
  */

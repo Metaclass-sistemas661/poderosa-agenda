@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
   User, 
   Lock, 
@@ -14,11 +14,21 @@ import {
   Mail,
   Clock,
   Loader2,
-  LogOut
+  LogOut,
+  Settings,
+  ChevronRight,
+  Monitor
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
+const menuItems = [
+  { id: 'profile', label: 'Meu Perfil', icon: User, description: 'Informações básicas da conta' },
+  { id: 'security', label: 'Segurança', icon: Lock, description: 'Senha e sessões' },
+  { id: 'system', label: 'Sistema', icon: Monitor, description: 'Preferências do painel' }
+]
+
 export default function ConfiguracoesPage() {
+  const [activeTab, setActiveTab] = useState('profile')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
@@ -94,8 +104,8 @@ export default function ConfiguracoesPage() {
       return
     }
 
-    if (passwords.new.length < 6) {
-      setMessage({ type: 'error', text: 'Mínimo 6 caracteres.' })
+    if (passwords.new.length < 8) {
+      setMessage({ type: 'error', text: 'Mínimo 8 caracteres exigidos para segurança.' })
       return
     }
 
@@ -147,214 +157,324 @@ export default function ConfiguracoesPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="p-4 lg:p-6">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Settings className="w-6 h-6 text-emerald-400" />
+            Configurações
+          </h1>
+          <p className="text-gray-400 mt-1">
+            Gerencie seu perfil, segurança e preferências do painel administrativo
+          </p>
+        </div>
+      </div>
+
       {/* Message Toast */}
-      {message && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          className={`fixed top-20 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg ${
-            message.type === 'success' 
-              ? 'bg-emerald-500 text-white' 
-              : 'bg-red-500 text-white'
-          }`}
-        >
-          {message.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-          <span className="text-sm font-medium">{message.text}</span>
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {message && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl ${
+              message.type === 'success' 
+                ? 'bg-[#1a2332] border border-emerald-500/50 text-white' 
+                : 'bg-[#1a2332] border border-red-500/50 text-white'
+            }`}
+          >
+            {message.type === 'success' 
+              ? <CheckCircle className="w-5 h-5 text-emerald-400" /> 
+              : <AlertCircle className="w-5 h-5 text-red-400" />
+            }
+            <span className="text-sm font-medium">{message.text}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Perfil */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-[#1a2332] rounded-2xl border border-white/5 overflow-hidden"
-        >
-          <div className="p-4 border-b border-white/5 flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-              <User className="w-4 h-4 text-emerald-400" />
-            </div>
-            <h2 className="text-white font-semibold">Meu Perfil</h2>
-          </div>
-
-          <div className="p-4 space-y-4">
-            {/* Avatar e info básica */}
-            <div className="flex items-center gap-4 pb-4 border-b border-white/5">
-              <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center">
-                <span className="text-white text-xl font-bold">
-                  {profile.name?.charAt(0).toUpperCase() || 'A'}
-                </span>
-              </div>
-              <div>
-                <p className="text-white font-medium">{profile.name}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Shield className="w-3 h-3 text-purple-400" />
-                  <span className="text-purple-400 text-xs">{getRoleLabel(profile.role)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Campos */}
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Nome</label>
-              <input
-                type="text"
-                value={profile.name}
-                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-400 mb-1 flex items-center gap-1">
-                  <Mail className="w-3 h-3" /> Email
-                </label>
-                <input
-                  type="email"
-                  value={profile.email}
-                  disabled
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-500 text-sm cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1 flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> Desde
-                </label>
-                <input
-                  type="text"
-                  value={profile.createdAt}
-                  disabled
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-500 text-sm cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={handleUpdateProfile}
-              disabled={isSaving}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-medium rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
-            >
-              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Salvar
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Segurança */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-[#1a2332] rounded-2xl border border-white/5 overflow-hidden"
-        >
-          <div className="p-4 border-b border-white/5 flex items-center gap-3">
-            <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center">
-              <Lock className="w-4 h-4 text-amber-400" />
-            </div>
-            <h2 className="text-white font-semibold">Alterar Senha</h2>
-          </div>
-
-          <div className="p-4 space-y-4">
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Senha Atual</label>
-              <div className="relative">
-                <input
-                  type={showCurrentPassword ? 'text' : 'password'}
-                  value={passwords.current}
-                  onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 pr-10 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
-                />
+      <div className="flex flex-col lg:flex-row gap-8">
+        
+        {/* Sidebar */}
+        <div className="w-full lg:w-72 flex-shrink-0">
+          <div className="bg-[#1a2332] border border-white/5 rounded-2xl p-3 sticky top-6">
+            <nav className="space-y-1">
+              {menuItems.map((item) => (
                 <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-start gap-4 p-4 rounded-xl transition-all duration-200 text-left ${
+                    activeTab === item.id 
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                      : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                  }`}
                 >
-                  {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <div className={`p-2 rounded-lg ${
+                    activeTab === item.id ? 'bg-emerald-500/20' : 'bg-white/5'
+                  }`}>
+                    <item.icon className={`w-5 h-5 ${
+                      activeTab === item.id ? 'text-emerald-400' : 'text-gray-400'
+                    }`} />
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-medium ${activeTab === item.id ? 'text-emerald-400' : 'text-white'}`}>
+                      {item.label}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-1">{item.description}</p>
+                  </div>
+                  {activeTab === item.id && (
+                    <ChevronRight className="w-4 h-4 mt-2" />
+                  )}
                 </button>
-              </div>
-            </div>
+              ))}
+            </nav>
+          </div>
+        </div>
 
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Nova Senha</label>
-              <div className="relative">
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  value={passwords.new}
-                  onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
-                  placeholder="Mínimo 6 caracteres"
-                  className="w-full px-3 py-2 pr-10 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
-                >
-                  {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {/* Indicador de força */}
-              {passwords.new && (
-                <div className="flex gap-1 mt-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className={`h-1 flex-1 rounded-full ${
-                        passwords.new.length >= i * 3
-                          ? i <= 2 ? 'bg-red-500' : i === 3 ? 'bg-amber-500' : 'bg-emerald-500'
-                          : 'bg-white/10'
-                      }`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-400 mb-1 block">Confirmar Nova</label>
-              <input
-                type="password"
-                value={passwords.confirm}
-                onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-                placeholder="Repita a senha"
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
-              />
-            </div>
-
-            <button
-              onClick={handleChangePassword}
-              disabled={isSaving || !passwords.current || !passwords.new || !passwords.confirm}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-medium rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-              Alterar Senha
-            </button>
-
-            {/* Encerrar sessões */}
-            <div className="pt-4 border-t border-white/5">
-              <button
-                onClick={async () => {
-                  await supabase.auth.signOut({ scope: 'global' })
-                  window.location.href = '/login'
-                }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-400 border border-red-500/20 text-sm font-medium rounded-xl hover:bg-red-500/20 transition-all"
+        {/* Content Area */}
+        <div className="flex-1">
+          <AnimatePresence mode="wait">
+            
+            {activeTab === 'profile' && (
+              <motion.div
+                key="profile"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-[#1a2332] border border-white/5 rounded-2xl overflow-hidden shadow-sm"
               >
-                <LogOut className="w-4 h-4" />
-                Encerrar Todas as Sessões
-              </button>
-            </div>
-          </div>
-        </motion.div>
+                <div className="p-6 border-b border-white/5">
+                  <h2 className="text-lg font-semibold text-white">Meu Perfil</h2>
+                  <p className="text-sm text-gray-400">Informações e identidade no sistema</p>
+                </div>
+                <div className="p-6 space-y-6">
+                  {/* Avatar Section */}
+                  <div className="flex items-center gap-6 pb-6 border-b border-white/5">
+                    <div className="relative group cursor-pointer">
+                      <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                        <span className="text-white text-3xl font-bold">
+                          {profile.name?.charAt(0).toUpperCase() || 'A'}
+                        </span>
+                      </div>
+                      <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <User className="w-6 h-6 text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-lg">{profile.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Shield className="w-4 h-4 text-emerald-400" />
+                        <span className="text-emerald-400 text-sm">{getRoleLabel(profile.role)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-sm font-medium text-gray-300">Nome Completo</label>
+                      <input
+                        type="text"
+                        value={profile.name}
+                        onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                        className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-gray-500" /> Email
+                      </label>
+                      <input
+                        type="email"
+                        value={profile.email}
+                        disabled
+                        className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-xl text-gray-500 text-sm cursor-not-allowed"
+                      />
+                      <p className="text-xs text-gray-500">O email é usado para login e não pode ser alterado.</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-gray-500" /> Membro Desde
+                      </label>
+                      <input
+                        type="text"
+                        value={profile.createdAt}
+                        disabled
+                        className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-xl text-gray-500 text-sm cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 border-t border-white/5 bg-black/20 flex justify-end">
+                  <button
+                    onClick={handleUpdateProfile}
+                    disabled={isSaving}
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-xl hover:bg-emerald-600 focus:ring-4 focus:ring-emerald-500/20 transition-all disabled:opacity-50"
+                  >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Salvar Alterações
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'security' && (
+              <motion.div
+                key="security"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-[#1a2332] border border-white/5 rounded-2xl overflow-hidden shadow-sm"
+              >
+                <div className="p-6 border-b border-white/5">
+                  <h2 className="text-lg font-semibold text-white">Segurança e Acesso</h2>
+                  <p className="text-sm text-gray-400">Proteja sua conta do SuperAdmin</p>
+                </div>
+                
+                <div className="p-6 space-y-8">
+                  {/* Troca de senha */}
+                  <div className="space-y-6">
+                    <h3 className="text-sm font-medium text-gray-300 border-b border-white/5 pb-2">Alterar Senha</h3>
+                    
+                    <div className="space-y-1.5">
+                      <label className="text-sm text-gray-400">Senha Atual</label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <input
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          value={passwords.current}
+                          onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
+                          placeholder="••••••••"
+                          className="w-full pl-11 pr-11 py-3 bg-black/20 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-1.5">
+                        <label className="text-sm text-gray-400">Nova Senha</label>
+                        <div className="relative">
+                          <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <input
+                            type={showNewPassword ? 'text' : 'password'}
+                            value={passwords.new}
+                            onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
+                            placeholder="Mínimo 8 caracteres"
+                            className="w-full pl-11 pr-11 py-3 bg-black/20 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                          >
+                            {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        {passwords.new && (
+                          <div className="flex gap-1 mt-2 px-1">
+                            {[1, 2, 3, 4].map((i) => (
+                              <div
+                                key={i}
+                                className={`h-1 flex-1 rounded-full ${
+                                  passwords.new.length >= i * 2
+                                    ? i <= 2 ? 'bg-red-500' : i === 3 ? 'bg-amber-500' : 'bg-emerald-500'
+                                    : 'bg-white/10'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-sm text-gray-400">Confirmar Nova Senha</label>
+                        <input
+                          type="password"
+                          value={passwords.confirm}
+                          onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+                          placeholder="Repita a senha"
+                          className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        onClick={handleChangePassword}
+                        disabled={isSaving || !passwords.current || !passwords.new || !passwords.confirm}
+                        className="flex items-center justify-center gap-2 px-6 py-2.5 bg-white/10 text-white border border-white/10 text-sm font-medium rounded-xl hover:bg-white/20 transition-all disabled:opacity-50"
+                      >
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                        Atualizar Senha
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sessões Ativas */}
+                  <div className="space-y-4 pt-6 border-t border-white/5">
+                    <h3 className="text-sm font-medium text-gray-300">Sessões Ativas</h3>
+                    <div className="flex items-center justify-between p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
+                      <div>
+                        <p className="text-white text-sm font-medium">Encerrar Todas as Sessões</p>
+                        <p className="text-red-400/80 text-xs mt-1">Isso desconectará você de todos os dispositivos ativos.</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          await supabase.auth.signOut({ scope: 'global' })
+                          window.location.href = '/login'
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Desconectar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'system' && (
+              <motion.div
+                key="system"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-[#1a2332] border border-white/5 rounded-2xl overflow-hidden shadow-sm"
+              >
+                <div className="p-6 border-b border-white/5">
+                  <h2 className="text-lg font-semibold text-white">Preferências do Sistema</h2>
+                  <p className="text-sm text-gray-400">Opções globais para o painel SuperAdmin</p>
+                </div>
+                <div className="p-6">
+                  <div className="p-6 border border-white/5 rounded-xl bg-black/20 text-center space-y-3">
+                    <Monitor className="w-8 h-8 text-gray-500 mx-auto" />
+                    <p className="text-white font-medium">Configurações globais</p>
+                    <p className="text-sm text-gray-400 max-w-sm mx-auto">
+                      O painel SuperAdmin opera sempre em modo escuro otimizado para não causar fadiga ocular em sessões longas. Em breve novas preferências de UI.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )

@@ -572,7 +572,7 @@ export default function UsuariosPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 z-50"
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
               onClick={() => setShowCreateDrawer(false)}
             />
             <motion.div
@@ -766,7 +766,7 @@ export default function UsuariosPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 z-50"
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
               onClick={() => setShowEditDrawer(false)}
             />
             <motion.div
@@ -774,7 +774,7 @@ export default function UsuariosPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-full max-w-md bg-[#0f1419] z-50 shadow-2xl flex flex-col"
+              className="fixed top-4 right-4 h-[calc(100vh-2rem)] w-full max-w-md bg-[#0f1419] z-50 shadow-2xl rounded-2xl flex flex-col overflow-hidden"
               data-lenis-prevent
             >
               {/* Header */}

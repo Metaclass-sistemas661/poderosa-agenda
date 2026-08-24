@@ -945,7 +945,7 @@ export interface Database {
       payment_webhooks: {
         Row: {
           id: string
-          provider: 'mercadopago' | 'stripe' | 'asaas'
+          provider: 'mercadopago' | 'asaas'
           external_id: string
           event_type: string
           payload: Json
@@ -963,7 +963,7 @@ export interface Database {
         }
         Insert: {
           id?: string
-          provider: 'mercadopago' | 'stripe' | 'asaas'
+          provider: 'mercadopago' | 'asaas'
           external_id: string
           event_type: string
           payload?: Json
@@ -981,7 +981,7 @@ export interface Database {
         }
         Update: {
           id?: string
-          provider?: 'mercadopago' | 'stripe' | 'asaas'
+          provider?: 'mercadopago' | 'asaas'
           external_id?: string
           event_type?: string
           payload?: Json

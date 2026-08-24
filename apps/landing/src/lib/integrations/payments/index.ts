@@ -1,9 +1,8 @@
 import { PaymentGateway } from './types'
 import { AsaasGateway } from './asaas'
 import { MercadoPagoGateway } from './mercadopago'
-import { StripeGateway } from './stripe'
 
-export type GatewayProvider = 'asaas' | 'mercado_pago' | 'stripe'
+export type GatewayProvider = 'asaas' | 'mercado_pago'
 
 export function createPaymentGateway(provider: GatewayProvider, accessToken: string): PaymentGateway {
   let gateway: PaymentGateway
@@ -14,9 +13,6 @@ export function createPaymentGateway(provider: GatewayProvider, accessToken: str
       break
     case 'mercado_pago':
       gateway = new MercadoPagoGateway()
-      break
-    case 'stripe':
-      gateway = new StripeGateway()
       break
     default:
       throw new Error(`Unsupported payment gateway: ${provider}`)
@@ -29,4 +25,3 @@ export function createPaymentGateway(provider: GatewayProvider, accessToken: str
 export * from './types'
 export * from './asaas'
 export * from './mercadopago'
-export * from './stripe'

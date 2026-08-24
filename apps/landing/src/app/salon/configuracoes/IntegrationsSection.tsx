@@ -392,7 +392,6 @@ export function IntegrationsSection({ salonId }: { salonId: string }) {
                                 className="w-full px-4 py-3 bg-white dark:bg-black/50 border border-slate-200 dark:border-white/10 rounded-xl text-sm text-slate-900 dark:text-white focus:border-[var(--color-primary-500)] outline-none"
                               >
                                 <option value="mercado_pago">Mercado Pago (Pix + Cartões)</option>
-                                <option value="stripe">Stripe</option>
                                 <option value="asaas">Asaas</option>
                               </select>
                             </div>
