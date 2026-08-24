@@ -1,76 +1,126 @@
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Hr,
-  Html,
-  Preview,
-  Section,
-  Text,
-  Tailwind
-} from '@react-email/components';
-import * as React from 'react';
+/**
+ * ============================================================================
+ * WELCOME EMAIL - Email de boas-vindas após pagamento confirmado
+ * ============================================================================
+ * Inclui credenciais temporárias para primeiro acesso
+ * ============================================================================
+ */
 
-interface WelcomeEmailProps {
-  salonName: string;
-  loginUrl: string;
+import * as React from 'react'
+import { Section, Text } from '@react-email/components'
+import {
+  EmailWrapper,
+  EmailHeader,
+  EmailFooter,
+  PrimaryButton,
+  Heading,
+  Paragraph,
+  InfoBox,
+  DataTable,
+  colors,
+} from './components'
+
+export interface WelcomeEmailProps {
+  salonName: string
+  ownerName?: string
+  loginUrl: string
+  temporaryPassword?: string
 }
 
 export const WelcomeEmail = ({
   salonName,
+  ownerName,
   loginUrl,
+  temporaryPassword,
 }: WelcomeEmailProps) => {
+  const hasCredentials = !!temporaryPassword
+
   return (
-    <Html>
-      <Head />
-      <Preview>Bem-vindo à Poderosa Agenda!</Preview>
-      <Tailwind>
-        <Body className="bg-zinc-50 my-auto mx-auto font-sans px-2">
-          <Container className="border border-solid border-zinc-200 rounded-lg shadow-sm my-[40px] mx-auto p-[20px] max-w-[465px] bg-white">
-            <Section className="mt-[32px]">
-              <Text className="text-2xl font-bold text-center text-zinc-900 mx-0 my-[30px] p-0">
-                Poderosa Agenda
-              </Text>
-            </Section>
-            
-            <Heading className="text-black text-[24px] font-normal text-center p-0 my-[30px] mx-0">
-              Pagamento Confirmado! 🚀
-            </Heading>
+    <EmailWrapper
+      preview={`Bem-vindo(a) à Poderosa Agenda! Seu salão ${salonName} está pronto.`}
+    >
+      <EmailHeader />
 
-            <Text className="text-black text-[14px] leading-[24px]">
-              Seja muito bem-vindo(a), administrador(a) do salão <strong>{salonName}</strong>!
-            </Text>
-            
-            <Text className="text-black text-[14px] leading-[24px]">
-              O seu pagamento foi recebido com sucesso e seu ambiente exclusivo já foi provisionado na nossa infraestrutura em nuvem.
+      <Heading emoji="🚀">Pagamento Confirmado!</Heading>
+
+      <Paragraph>
+        {ownerName ? `Olá, ${ownerName}!` : 'Olá!'} Seja muito bem-vindo(a),
+        administrador(a) do salão <strong>{salonName}</strong>!
+      </Paragraph>
+
+      <Paragraph>
+        O seu pagamento foi recebido com sucesso e seu ambiente exclusivo já foi
+        provisionado na nossa infraestrutura em nuvem.
+      </Paragraph>
+
+      {/* Credenciais de Acesso */}
+      {hasCredentials && (
+        <>
+          <Section
+            style={{
+              backgroundColor: colors.slate[100],
+              borderRadius: '12px',
+              margin: '24px 40px',
+              padding: '24px',
+              border: `2px solid ${colors.primary[600]}`,
+            }}
+          >
+            <Text
+              style={{
+                color: colors.primary[600],
+                fontSize: '14px',
+                fontWeight: '600',
+                letterSpacing: '0.05em',
+                margin: '0 0 16px',
+                textTransform: 'uppercase' as const,
+                textAlign: 'center' as const,
+              }}
+            >
+              🔐 Suas Credenciais de Acesso
             </Text>
 
-            <Section className="text-center mt-[32px] mb-[32px]">
-              <Button
-                className="bg-black rounded-lg text-white text-[12px] font-semibold no-underline text-center px-5 py-3 w-full"
-                href={loginUrl}
-              >
-                Acessar meu Painel
-              </Button>
-            </Section>
+            <DataTable
+              rows={[
+                { label: 'Senha Temporária', value: temporaryPassword || '' },
+              ]}
+            />
 
-            <Text className="text-black text-[14px] leading-[24px]">
-              Para o seu primeiro acesso, utilize o mesmo e-mail que você cadastrou na solicitação.
-              Recomendamos usar a opção "Magic Link" ou redefinir a senha no primeiro login.
+            <Text
+              style={{
+                color: colors.slate[500],
+                fontSize: '12px',
+                margin: '16px 0 0',
+                textAlign: 'center' as const,
+              }}
+            >
+              Use o e-mail para o qual recebeu esta mensagem
             </Text>
-            
-            <Hr className="border border-solid border-[#eaeaea] my-[26px] mx-0" />
-            
-            <Text className="text-[#666666] text-[12px] leading-[24px]">
-              Qualquer dúvida, responda este e-mail para falar com nosso suporte.
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
-  );
-};
+          </Section>
 
-export default WelcomeEmail;
+          <InfoBox variant="warning">
+            <strong>⚠️ Importante:</strong> Por segurança, você será obrigado(a)
+            a trocar esta senha temporária no primeiro acesso ao sistema.
+          </InfoBox>
+        </>
+      )}
+
+      {!hasCredentials && (
+        <InfoBox variant="info">
+          Para o seu primeiro acesso, utilize o mesmo e-mail que você cadastrou
+          na solicitação. Recomendamos usar a opção "Magic Link" ou redefinir a
+          senha no primeiro login.
+        </InfoBox>
+      )}
+
+      <PrimaryButton href={loginUrl}>Acessar meu Painel</PrimaryButton>
+
+      <Paragraph muted>
+        Qualquer dúvida, responda este e-mail para falar com nosso suporte.
+      </Paragraph>
+
+      <EmailFooter showSocial />
+    </EmailWrapper>
+  )
+}
+
+export default WelcomeEmail

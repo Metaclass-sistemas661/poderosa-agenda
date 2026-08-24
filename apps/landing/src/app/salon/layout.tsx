@@ -33,6 +33,7 @@ import { buildSearchOrClause, SEARCH_MAX_LENGTH } from '@/lib/search/security'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { WhatsNewModal, VersionBadge } from '@/components/ui/WhatsNewModal'
+import { ForcePasswordChangeModal } from '@/components/ui/ForcePasswordChangeModal'
 import { AppearanceProvider, useAppearance } from '@/contexts/AppearanceContext'
 
 interface AdminUser {
@@ -42,6 +43,7 @@ interface AdminUser {
   role: string
   salon_id: string
   salons?: Salon
+  must_change_password?: boolean
 }
 
 interface Salon {
@@ -96,6 +98,7 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showWhatsNew, setShowWhatsNew] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [searchResults, setSearchResults] = useState<{
@@ -342,6 +345,11 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
           router.push(`/salon/bloqueado?reason=${reason}&salon=${encodeURIComponent(salonData.name)}`)
           return
         }
+      }
+
+      // Enterprise: Check if user must change password
+      if ((adminUser as any).must_change_password === true) {
+        setShowPasswordModal(true)
       }
 
       setUser(adminUser as AdminUser)
@@ -1033,6 +1041,19 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
       {showWhatsNew && (
         <WhatsNewModal forceOpen onClose={() => setShowWhatsNew(false)} />
       )}
+
+      {/* Force Password Change Modal - Enterprise Onboarding */}
+      <ForcePasswordChangeModal
+        isOpen={showPasswordModal}
+        onPasswordChanged={() => {
+          setShowPasswordModal(false)
+          // Update local state to reflect password change
+          if (user) {
+            setUser({ ...user, must_change_password: false })
+          }
+        }}
+        userName={user?.name}
+      />
     </div>
   )
 }

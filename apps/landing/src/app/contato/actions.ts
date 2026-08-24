@@ -239,9 +239,8 @@ async function sendConfirmationEmail(
 
     const emailHtml = await render(
       ContactConfirmationEmail({
-        senderName: data.name,
+        name: data.name,
         subject: data.subject,
-        receivedAt: new Date()
       })
     )
 
