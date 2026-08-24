@@ -21,7 +21,26 @@ export interface Database {
           state: string
           professionals: string
           message: string | null
-          status: 'pending' | 'approved' | 'rejected' | 'awaiting_payment'
+          status: 'pending' | 'approved' | 'rejected' | 'awaiting_payment' | 'provisioning' | 'payment_confirmed' | 'failed'
+          // Enterprise Onboarding Fields
+          payment_status: 'pending' | 'approved' | 'rejected' | 'refunded' | null
+          payment_reference: string | null
+          payment_id: string | null
+          onboarding_stage: 'form_submitted' | 'approved' | 'payment_pending' | 'payment_received' | 'provisioning' | 'completed' | 'failed' | null
+          provisioned_salon_id: string | null
+          provisioned_user_id: string | null
+          provisioning_attempts: number
+          provisioning_error: string | null
+          // Payment fields
+          payment_method: string | null
+          payment_amount: number | null
+          paid_at: string | null
+          payment_raw_data: Json | null
+          // Address fields
+          address_zip: string | null
+          address_street: string | null
+          address_number: string | null
+          address_neighborhood: string | null
           created_at: string
           updated_at: string
         }
@@ -35,7 +54,23 @@ export interface Database {
           state: string
           professionals: string
           message?: string | null
-          status?: 'pending' | 'approved' | 'rejected' | 'awaiting_payment'
+          status?: 'pending' | 'approved' | 'rejected' | 'awaiting_payment' | 'provisioning' | 'payment_confirmed' | 'failed'
+          payment_status?: 'pending' | 'approved' | 'rejected' | 'refunded' | null
+          payment_reference?: string | null
+          payment_id?: string | null
+          onboarding_stage?: 'form_submitted' | 'approved' | 'payment_pending' | 'payment_received' | 'provisioning' | 'completed' | 'failed' | null
+          provisioned_salon_id?: string | null
+          provisioned_user_id?: string | null
+          provisioning_attempts?: number
+          provisioning_error?: string | null
+          payment_method?: string | null
+          payment_amount?: number | null
+          paid_at?: string | null
+          payment_raw_data?: Json | null
+          address_zip?: string | null
+          address_street?: string | null
+          address_number?: string | null
+          address_neighborhood?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -49,7 +84,23 @@ export interface Database {
           state?: string
           professionals?: string
           message?: string | null
-          status?: 'pending' | 'approved' | 'rejected' | 'awaiting_payment'
+          status?: 'pending' | 'approved' | 'rejected' | 'awaiting_payment' | 'provisioning' | 'payment_confirmed' | 'failed'
+          payment_status?: 'pending' | 'approved' | 'rejected' | 'refunded' | null
+          payment_reference?: string | null
+          payment_id?: string | null
+          onboarding_stage?: 'form_submitted' | 'approved' | 'payment_pending' | 'payment_received' | 'provisioning' | 'completed' | 'failed' | null
+          provisioned_salon_id?: string | null
+          provisioned_user_id?: string | null
+          provisioning_attempts?: number
+          provisioning_error?: string | null
+          payment_method?: string | null
+          payment_amount?: number | null
+          paid_at?: string | null
+          payment_raw_data?: Json | null
+          address_zip?: string | null
+          address_street?: string | null
+          address_number?: string | null
+          address_neighborhood?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -68,9 +119,15 @@ export interface Database {
           address: string | null
           city: string
           state: string
-          plan: 'basic' | 'pro' | 'enterprise'
+          plan: 'starter' | 'basic' | 'pro' | 'enterprise'
           professionals_count: string
           status: 'active' | 'inactive' | 'suspended'
+          // Enterprise address fields
+          address_zip: string | null
+          address_street: string | null
+          address_number: string | null
+          address_neighborhood: string | null
+          owner_id: string | null
           created_at: string
           updated_at: string
         }
@@ -78,16 +135,21 @@ export interface Database {
           id?: string
           name: string
           cnpj?: string | null
-          owner_name: string
+          owner_name?: string
           owner_cpf?: string | null
-          email: string
+          email?: string
           phone: string
           address?: string | null
           city: string
           state: string
-          plan?: 'basic' | 'pro' | 'enterprise'
-          professionals_count: string
+          plan?: 'starter' | 'basic' | 'pro' | 'enterprise'
+          professionals_count?: string
           status?: 'active' | 'inactive' | 'suspended'
+          address_zip?: string | null
+          address_street?: string | null
+          address_number?: string | null
+          address_neighborhood?: string | null
+          owner_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -102,9 +164,14 @@ export interface Database {
           address?: string | null
           city?: string
           state?: string
-          plan?: 'basic' | 'pro' | 'enterprise'
+          plan?: 'starter' | 'basic' | 'pro' | 'enterprise'
           professionals_count?: string
           status?: 'active' | 'inactive' | 'suspended'
+          address_zip?: string | null
+          address_street?: string | null
+          address_number?: string | null
+          address_neighborhood?: string | null
+          owner_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -119,9 +186,13 @@ export interface Database {
           email: string
           cpf: string | null
           phone: string | null
-          role: 'superadmin' | 'admin' | 'manager' | 'support' | 'viewer'
+          role: 'superadmin' | 'owner' | 'admin' | 'manager' | 'support' | 'viewer'
           salon_id: string | null
           permissions: Json
+          must_change_password: boolean
+          password_changed_at: string | null
+          provisioned_at: string | null
+          provisioned_by_request_id: string | null
           created_at: string
           updated_at: string
         }
@@ -132,9 +203,13 @@ export interface Database {
           email: string
           cpf?: string | null
           phone?: string | null
-          role?: 'superadmin' | 'admin' | 'manager' | 'support' | 'viewer'
+          role?: 'superadmin' | 'owner' | 'admin' | 'manager' | 'support' | 'viewer'
           salon_id?: string | null
           permissions?: Json
+          must_change_password?: boolean
+          password_changed_at?: string | null
+          provisioned_at?: string | null
+          provisioned_by_request_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -145,9 +220,13 @@ export interface Database {
           email?: string
           cpf?: string | null
           phone?: string | null
-          role?: 'superadmin' | 'admin' | 'manager' | 'support' | 'viewer'
+          role?: 'superadmin' | 'owner' | 'admin' | 'manager' | 'support' | 'viewer'
           salon_id?: string | null
           permissions?: Json
+          must_change_password?: boolean
+          password_changed_at?: string | null
+          provisioned_at?: string | null
+          provisioned_by_request_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -862,6 +941,114 @@ export interface Database {
         }
         Relationships: []
       }
+      // Payment Webhooks - Idempotency table for webhook processing
+      payment_webhooks: {
+        Row: {
+          id: string
+          provider: 'mercadopago' | 'stripe' | 'asaas'
+          external_id: string
+          event_type: string
+          payload: Json
+          raw_payload: Json | null
+          status: 'pending' | 'processing' | 'processed' | 'failed'
+          access_request_id: string | null
+          processing_error: string | null
+          processed_at: string | null
+          ip_address: string | null
+          user_agent: string | null
+          signature_valid: boolean | null
+          processing_attempts: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          provider: 'mercadopago' | 'stripe' | 'asaas'
+          external_id: string
+          event_type: string
+          payload?: Json
+          raw_payload?: Json | null
+          status?: 'pending' | 'processing' | 'processed' | 'failed'
+          access_request_id?: string | null
+          processing_error?: string | null
+          processed_at?: string | null
+          ip_address?: string | null
+          user_agent?: string | null
+          signature_valid?: boolean | null
+          processing_attempts?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          provider?: 'mercadopago' | 'stripe' | 'asaas'
+          external_id?: string
+          event_type?: string
+          payload?: Json
+          raw_payload?: Json | null
+          status?: 'pending' | 'processing' | 'processed' | 'failed'
+          access_request_id?: string | null
+          processing_error?: string | null
+          processed_at?: string | null
+          ip_address?: string | null
+          user_agent?: string | null
+          signature_valid?: boolean | null
+          processing_attempts?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_webhooks_access_request_id_fkey"
+            columns: ["access_request_id"]
+            isOneToOne: false
+            referencedRelation: "access_requests"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      // Provisioning Logs - Audit trail for tenant provisioning
+      provisioning_logs: {
+        Row: {
+          id: string
+          access_request_id: string
+          stage: string
+          status: 'started' | 'completed' | 'failed'
+          details: Json | null
+          error_message: string | null
+          duration_ms: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          access_request_id: string
+          stage: string
+          status: 'started' | 'completed' | 'failed'
+          details?: Json | null
+          error_message?: string | null
+          duration_ms?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          access_request_id?: string
+          stage?: string
+          status?: 'started' | 'completed' | 'failed'
+          details?: Json | null
+          error_message?: string | null
+          duration_ms?: number | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provisioning_logs_access_request_id_fkey"
+            columns: ["access_request_id"]
+            isOneToOne: false
+            referencedRelation: "access_requests"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -886,6 +1073,27 @@ export interface Database {
           p_actor_id: string
         }
         Returns: void
+      }
+      mark_password_changed: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: void
+      }
+      complete_onboarding_payment: {
+        Args: {
+          p_access_request_id: string
+          p_payment_id: string
+          p_payment_reference: string
+        }
+        Returns: void
+      }
+      provision_salon_from_payment: {
+        Args: {
+          p_access_request_id: string
+          p_temporary_password: string
+        }
+        Returns: Json
       }
     }
     Enums: {

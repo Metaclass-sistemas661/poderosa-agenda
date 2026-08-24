@@ -19,6 +19,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
+import type { Json } from '@/lib/database.types'
 
 // ============================================================================
 // TYPES
@@ -62,7 +63,7 @@ interface PaymentDetails {
 
 interface ProvisioningStep {
     step: string
-    status: 'started' | 'success' | 'failed' | 'skipped'
+    status: 'started' | 'completed' | 'failed'
     startedAt: Date
     completedAt?: Date
     inputData?: Record<string, unknown>
@@ -214,16 +215,19 @@ async function logProvisioningStep(
     step: ProvisioningStep
 ): Promise<void> {
     try {
+        const details: Json = {
+            inputData: step.inputData ? JSON.parse(JSON.stringify(step.inputData)) : null,
+            outputData: step.outputData ? JSON.parse(JSON.stringify(step.outputData)) : null,
+            errorStack: step.errorStack || null,
+            startedAt: step.startedAt.toISOString(),
+            completedAt: step.completedAt?.toISOString() || null
+        }
         await supabase.from('provisioning_logs').insert({
             access_request_id: requestId,
-            step: step.step,
+            stage: step.step,
             status: step.status,
-            input_data: step.inputData || null,
-            output_data: step.outputData || null,
+            details,
             error_message: step.errorMessage || null,
-            error_stack: step.errorStack || null,
-            started_at: step.startedAt.toISOString(),
-            completed_at: step.completedAt?.toISOString() || null,
             duration_ms: step.completedAt
                 ? step.completedAt.getTime() - step.startedAt.getTime()
                 : null
@@ -269,7 +273,7 @@ async function completeProvisioning(
 
     const completeStep = (output?: Record<string, unknown>) => {
         if (currentStep) {
-            currentStep.status = 'success'
+            currentStep.status = 'completed'
             currentStep.completedAt = new Date()
             currentStep.outputData = output
             steps.push({ ...currentStep })
@@ -311,7 +315,7 @@ async function completeProvisioning(
             completeStep({ skipped: true, reason: 'Already provisioned' })
             return {
                 success: true,
-                userId: request.provisioned_user_id,
+                userId: request.provisioned_user_id ?? undefined,
                 salonId: request.provisioned_salon_id
             }
         }
@@ -638,11 +642,11 @@ export async function POST(request: NextRequest) {
         const { data: existingWebhook, error: idempotencyError } = await supabase
             .from('payment_webhooks')
             .select('id, status, processed_at')
-            .eq('provider', 'mercado_pago')
+            .eq('provider', 'mercadopago')
             .eq('external_id', externalId)
-            .single()
+            .maybeSingle()
 
-        if (existingWebhook && existingWebhook.status === 'processed') {
+        if (existingWebhook?.status === 'processed') {
             console.log('[MP_WEBHOOK] Duplicate webhook, already processed', {
                 externalId,
                 processedAt: existingWebhook.processed_at
@@ -656,18 +660,19 @@ export async function POST(request: NextRequest) {
         // ========================================
         // 3. STORE WEBHOOK FOR AUDIT
         // ========================================
+        const existingAttempts = existingWebhook && existingWebhook.status === 'failed' ? 1 : 0
         const { data: webhookRecord, error: insertError } = await supabase
             .from('payment_webhooks')
             .upsert({
                 external_id: externalId,
-                provider: 'mercado_pago',
-                status: 'processing',
+                provider: 'mercadopago' as const,
+                status: 'processing' as const,
                 event_type: body.type,
-                raw_payload: body,
+                raw_payload: body as unknown as Json,
                 ip_address: ipAddress,
                 user_agent: userAgent,
                 signature_valid: signatureValid,
-                processing_attempts: (existingWebhook?.status === 'failed' ? 1 : 0) + 1
+                processing_attempts: existingAttempts + 1
             }, {
                 onConflict: 'provider,external_id',
                 ignoreDuplicates: false
@@ -687,13 +692,15 @@ export async function POST(request: NextRequest) {
         if (body.type !== 'payment') {
             console.log('[MP_WEBHOOK] Ignoring non-payment event:', body.type)
 
-            await supabase
-                .from('payment_webhooks')
-                .update({
-                    status: 'processed',
-                    processed_at: new Date().toISOString()
-                })
-                .eq('id', webhookRecord?.id)
+            if (webhookRecord?.id) {
+                await supabase
+                    .from('payment_webhooks')
+                    .update({
+                        status: 'processed' as const,
+                        processed_at: new Date().toISOString()
+                    })
+                    .eq('id', webhookRecord.id)
+            }
 
             return NextResponse.json({
                 status: 'ignored',
@@ -710,13 +717,15 @@ export async function POST(request: NextRequest) {
         if (!payment) {
             console.error('[MP_WEBHOOK] Could not fetch payment details')
 
-            await supabase
-                .from('payment_webhooks')
-                .update({
-                    status: 'failed',
-                    processing_error: 'Could not fetch payment details from Mercado Pago'
-                })
-                .eq('id', webhookRecord?.id)
+            if (webhookRecord?.id) {
+                await supabase
+                    .from('payment_webhooks')
+                    .update({
+                        status: 'failed' as const,
+                        processing_error: 'Could not fetch payment details from Mercado Pago'
+                    })
+                    .eq('id', webhookRecord.id)
+            }
 
             return NextResponse.json(
                 { error: 'Could not fetch payment details' },
@@ -743,24 +752,32 @@ export async function POST(request: NextRequest) {
 
             // If we have an external_reference (access_request_id), update it
             if (payment.external_reference) {
+                // Cast payment_status to the enum type only if it's a valid value
+                const validStatuses = ['pending', 'approved', 'rejected', 'refunded'] as const
+                const paymentStatusValue = validStatuses.includes(payment.status as any)
+                    ? payment.status as 'pending' | 'approved' | 'rejected' | 'refunded'
+                    : null
+
                 await supabase
                     .from('access_requests')
                     .update({
                         payment_id: payment.id.toString(),
-                        payment_status: payment.status,
-                        payment_raw_data: payment
+                        payment_status: paymentStatusValue,
+                        payment_raw_data: payment as unknown as Json
                     })
                     .eq('id', payment.external_reference)
             }
 
-            await supabase
-                .from('payment_webhooks')
-                .update({
-                    status: 'processed',
-                    processed_at: new Date().toISOString(),
-                    access_request_id: payment.external_reference || null
-                })
-                .eq('id', webhookRecord?.id)
+            if (webhookRecord?.id) {
+                await supabase
+                    .from('payment_webhooks')
+                    .update({
+                        status: 'processed' as const,
+                        processed_at: new Date().toISOString(),
+                        access_request_id: payment.external_reference || null
+                    })
+                    .eq('id', webhookRecord.id)
+            }
 
             return NextResponse.json({
                 status: 'stored',
@@ -776,13 +793,15 @@ export async function POST(request: NextRequest) {
         if (!accessRequestId) {
             console.error('[MP_WEBHOOK] No external_reference in payment - cannot link to access request')
 
-            await supabase
-                .from('payment_webhooks')
-                .update({
-                    status: 'failed',
-                    processing_error: 'No external_reference in payment'
-                })
-                .eq('id', webhookRecord?.id)
+            if (webhookRecord?.id) {
+                await supabase
+                    .from('payment_webhooks')
+                    .update({
+                        status: 'failed' as const,
+                        processing_error: 'No external_reference in payment'
+                    })
+                    .eq('id', webhookRecord.id)
+            }
 
             return NextResponse.json(
                 { error: 'No access request reference in payment' },
@@ -797,20 +816,22 @@ export async function POST(request: NextRequest) {
             .from('access_requests')
             .update({
                 payment_id: payment.id.toString(),
-                payment_status: payment.status,
+                payment_status: 'approved' as const,
                 payment_method: payment.payment_type_id,
                 payment_amount: payment.transaction_amount,
                 paid_at: payment.date_approved || new Date().toISOString(),
-                payment_raw_data: payment,
-                status: 'payment_confirmed'
+                payment_raw_data: payment as unknown as Json,
+                status: 'payment_confirmed' as const
             })
             .eq('id', accessRequestId)
 
         // Update webhook with access_request link
-        await supabase
-            .from('payment_webhooks')
-            .update({ access_request_id: accessRequestId })
-            .eq('id', webhookRecord?.id)
+        if (webhookRecord?.id) {
+            await supabase
+                .from('payment_webhooks')
+                .update({ access_request_id: accessRequestId })
+                .eq('id', webhookRecord.id)
+        }
 
         // ========================================
         // 9. EXECUTE PROVISIONING
@@ -829,13 +850,15 @@ export async function POST(request: NextRequest) {
         const duration = Date.now() - startTime
 
         if (provisioningResult.success) {
-            await supabase
-                .from('payment_webhooks')
-                .update({
-                    status: 'processed',
-                    processed_at: new Date().toISOString()
-                })
-                .eq('id', webhookRecord?.id)
+            if (webhookRecord?.id) {
+                await supabase
+                    .from('payment_webhooks')
+                    .update({
+                        status: 'processed' as const,
+                        processed_at: new Date().toISOString()
+                    })
+                    .eq('id', webhookRecord.id)
+            }
 
             console.log('[MP_WEBHOOK] Webhook processed successfully', {
                 duration: `${duration}ms`,
@@ -850,13 +873,15 @@ export async function POST(request: NextRequest) {
                 salonId: provisioningResult.salonId
             })
         } else {
-            await supabase
-                .from('payment_webhooks')
-                .update({
-                    status: 'failed',
-                    processing_error: provisioningResult.error
-                })
-                .eq('id', webhookRecord?.id)
+            if (webhookRecord?.id) {
+                await supabase
+                    .from('payment_webhooks')
+                    .update({
+                        status: 'failed' as const,
+                        processing_error: provisioningResult.error
+                    })
+                    .eq('id', webhookRecord.id)
+            }
 
             console.error('[MP_WEBHOOK] Provisioning failed', {
                 duration: `${duration}ms`,
