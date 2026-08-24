@@ -107,6 +107,9 @@ export async function updateSalonDetails(
         address?: string;
         professionals_count?: string;
         email?: string;
+        zip_code?: string;
+        address_number?: string;
+        neighborhood?: string;
     }
 ): Promise<ActionResult> {
     try {
@@ -127,7 +130,10 @@ export async function updateSalonDetails(
             p_owner_cpf: data.owner_cpf,
             p_address: data.address,
             p_professionals_count: data.professionals_count,
-            p_email: data.email
+            p_email: data.email,
+            p_zip_code: data.zip_code,
+            p_address_number: data.address_number,
+            p_neighborhood: data.neighborhood
         })
 
         if (error) return { success: false, error: error.message }
