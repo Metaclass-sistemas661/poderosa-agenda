@@ -14,10 +14,12 @@ import {
   CheckCircle,
   AlertCircle,
   MessageSquare,
+  Loader2,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { mapSupabaseError } from '@/lib/errors/mapper'
 import { showErrorToast } from '@/lib/errors/toast'
+import { useViaCEP } from '@/hooks/useViaCEP'
 
 /*
  * ─────────────────────────────────────────────────────────────────────────────
@@ -71,9 +73,15 @@ export default function CadastroPage() {
     phone: '',
     city: '',
     state: '',
+    address_zip: '',
+    address_street: '',
+    address_number: '',
+    address_neighborhood: '',
     professionals: '',
     message: '',
   })
+
+  const { fetchCep, formatCEP, isLoading: isLoadingCep, error: cepError, setError: setCepError } = useViaCEP()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -94,6 +102,10 @@ export default function CadastroPage() {
         p_phone: formData.phone,
         p_city: formData.city,
         p_state: formData.state,
+        p_address_zip: formData.address_zip || null,
+        p_address_street: formData.address_street || null,
+        p_address_number: formData.address_number || null,
+        p_address_neighborhood: formData.address_neighborhood || null,
         p_professionals: formData.professionals,
         p_message: formData.message || null,
         p_source: 'website'
@@ -345,43 +357,119 @@ export default function CadastroPage() {
                   </div>
                 </div>
 
-                {/* City & State */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="city" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
-                      Cidade <span className="text-red-400">*</span>
-                    </label>
-                    <div className="relative">
-                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
+                {/* Address Complete Section */}
+                <div className="border-t border-slate-100 pt-6 mt-2">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4 pl-1">Endereço Completo</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="md:col-span-1">
+                      <div className="relative">
+                        <MapPin className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
+                        <input
+                          type="text"
+                          value={formData.address_zip}
+                          onChange={async (e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            const formatted = formatCEP(e.target.value);
+                            setFormData({ ...formData, address_zip: formatted });
+                            if (val.length === 8) {
+                              const result = await fetchCep(val);
+                              if (result) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  address_zip: formatted,
+                                  address_street: result.isGeneral ? '' : result.address,
+                                  address_neighborhood: result.isGeneral ? '' : result.neighborhood,
+                                  city: result.city,
+                                  state: result.state
+                                }));
+                                setTimeout(() => {
+                                  const nextId = result.isGeneral ? 'landing-street' : 'landing-number';
+                                  document.getElementById(nextId)?.focus();
+                                }, 50);
+                              }
+                            } else {
+                              setCepError(null);
+                            }
+                          }}
+                          className="w-full pl-11 pr-10 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
+                          placeholder="CEP"
+                        />
+                        {isLoadingCep && <div className="absolute right-3 top-3.5"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>}
+                      </div>
+                      {cepError && <p className="text-xs text-red-400 mt-1 ml-1">{cepError}</p>}
+                    </div>
+                    <div className="md:col-span-2">
                       <input
-                        id="city"
+                        id="landing-street"
                         type="text"
-                        required
-                        value={formData.city}
-                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
-                        placeholder="São Paulo"
+                        value={formData.address_street}
+                        onChange={(e) => setFormData({ ...formData, address_street: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
+                        placeholder="Rua / Avenida"
                       />
                     </div>
                   </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="md:col-span-1">
+                      <input
+                        id="landing-number"
+                        type="text"
+                        value={formData.address_number}
+                        onChange={(e) => setFormData({ ...formData, address_number: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
+                        placeholder="Número"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <input
+                        type="text"
+                        value={formData.address_neighborhood}
+                        onChange={(e) => setFormData({ ...formData, address_neighborhood: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
+                        placeholder="Bairro"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="city" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
+                        Cidade <span className="text-red-400">*</span>
+                      </label>
+                      <div className="relative">
+                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
+                        <input
+                          id="city"
+                          type="text"
+                          required
+                          value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                          className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 hover:bg-white"
+                          placeholder="São Paulo"
+                        />
+                      </div>
+                    </div>
 
-                  <div>
-                    <label htmlFor="state" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
-                      Estado <span className="text-red-400">*</span>
-                    </label>
-                    <select
-                      id="state"
-                      required
-                      value={formData.state}
-                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 appearance-none cursor-pointer hover:bg-white"
-                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px' }}
-                    >
-                      <option value="" className="text-slate-500">Selecione</option>
-                      {BRAZILIAN_STATES.map((uf) => (
-                        <option key={uf} value={uf} className="text-slate-900 bg-white">{uf}</option>
-                      ))}
-                    </select>
+                    <div>
+                      <label htmlFor="state" className="block text-sm font-medium text-slate-700 mb-2 pl-1">
+                        Estado <span className="text-red-400">*</span>
+                      </label>
+                      <select
+                        id="state"
+                        required
+                        value={formData.state}
+                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-200 appearance-none cursor-pointer hover:bg-white"
+                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px' }}
+                      >
+                        <option value="" className="text-slate-500">Selecione</option>
+                        {BRAZILIAN_STATES.map((uf) => (
+                          <option key={uf} value={uf} className="text-slate-900 bg-white">{uf}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
