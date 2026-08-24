@@ -3,15 +3,15 @@ import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 import SalonStatusEmail from '@/emails/SalonStatusEmail';
 
-// Create Supabase admin client (bypasses RLS)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // Needs service role key to reliably read emails
-);
-
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
+  // Create Supabase admin client (bypasses RLS)
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy_key'
+  );
+
   try {
     const { salonId, status } = await request.json();
 
