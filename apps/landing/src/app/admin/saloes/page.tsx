@@ -219,6 +219,22 @@ export default function SaloesPage() {
       .eq('id', selectedSalon.id)
 
     if (!error) {
+      // Notificar cliente por e-mail se o status mudou
+      if (selectedSalon.status !== editForm.status) {
+        try {
+          await fetch('/api/webhooks/salon-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              salonId: selectedSalon.id,
+              status: editForm.status
+            })
+          })
+        } catch (e) {
+          console.error('Falha ao disparar e-mail de status', e)
+        }
+      }
+
       setSalons(prev => prev.map(s => s.id === selectedSalon.id ? { ...s, ...editForm } as Salon : s))
       setMessage({ type: 'success', text: 'Salão atualizado!' })
       setShowEditDrawer(false)
