@@ -91,3 +91,51 @@ export async function restoreSalon(salonId: string): Promise<ActionResult> {
         return { success: false, error: err.message === 'FORBIDDEN' ? 'Permissão negada' : 'Erro interno' }
     }
 }
+
+export async function updateSalonDetails(
+    salonId: string,
+    data: {
+        name?: string;
+        owner_name?: string;
+        phone?: string;
+        city?: string;
+        state?: string;
+        plan?: string;
+        status?: string;
+        cnpj?: string;
+        owner_cpf?: string;
+        address?: string;
+        professionals_count?: string;
+        email?: string;
+    }
+): Promise<ActionResult> {
+    try {
+        const actorId = await requireSuperadmin()
+        const supabase = createClient()
+
+        const { data: result, error } = await supabase.rpc('update_salon_details', {
+            p_salon_id: salonId,
+            p_actor_id: actorId,
+            p_name: data.name,
+            p_owner_name: data.owner_name,
+            p_phone: data.phone,
+            p_city: data.city,
+            p_state: data.state,
+            p_plan: data.plan,
+            p_status: data.status,
+            p_cnpj: data.cnpj,
+            p_owner_cpf: data.owner_cpf,
+            p_address: data.address,
+            p_professionals_count: data.professionals_count,
+            p_email: data.email
+        })
+
+        if (error) return { success: false, error: error.message }
+        if (!result?.success) return { success: false, error: result?.error || 'Unknown error' }
+
+        revalidatePath('/admin/saloes')
+        return { success: true, data: result }
+    } catch (err: any) {
+        return { success: false, error: err.message === 'FORBIDDEN' ? 'Permissão negada' : 'Erro interno' }
+    }
+}

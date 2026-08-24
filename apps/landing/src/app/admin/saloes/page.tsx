@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { createSalonManual } from '@/app/actions/provisioning'
-import { changeSalonStatus, deleteSalon } from '@/app/actions/salon-management'
+import { changeSalonStatus, deleteSalon, updateSalonDetails } from '@/app/actions/salon-management'
 
 interface Salon {
   id: string
@@ -155,67 +155,7 @@ export default function SaloesPage() {
 
   // Form state
   const [editForm, setEditForm] = useState<Partial<Salon>>({})
-  const [createForm, setCreateForm] = useState({
-    name: '',
-    owner_name: '',
-    email: '',
-    phone: '',
-    city: '',
-    state: '',
-    plan: 'basic' as Salon['plan'],
-    professionals_count: '1',
-    document_type: 'cpf' as 'cpf' | 'cnpj',
-    document: ''
-  })
-
-  // Validação do formulário
-  const validateCreateForm = async (): Promise<boolean> => {
-    const newErrors: Record<string, string> = {}
-
-    if (!createForm.name.trim()) newErrors.name = 'Nome é obrigatório'
-    if (!createForm.owner_name.trim()) newErrors.owner_name = 'Proprietário é obrigatório'
-    if (!createForm.email.trim()) {
-      newErrors.email = 'Email é obrigatório'
-    } else if (!validateEmail(createForm.email)) {
-      newErrors.email = 'Email inválido'
-    }
-    if (!createForm.city.trim()) newErrors.city = 'Cidade é obrigatória'
-    if (!createForm.state) newErrors.state = 'Estado é obrigatório'
-
-    // Validar documento
-    if (createForm.document) {
-      if (createForm.document_type === 'cpf' && !validateCPF(createForm.document)) {
-        newErrors.document = 'CPF inválido'
-      } else if (createForm.document_type === 'cnpj' && !validateCNPJ(createForm.document)) {
-        newErrors.document = 'CNPJ inválido'
-      }
-    }
-
-    // Verificar duplicidade de email
-    if (createForm.email) {
-      const { data: existingEmail } = await supabase
-        .from('salons')
-        .select('id')
-        .eq('email', createForm.email)
-        .single()
-      if (existingEmail) newErrors.email = 'Email já cadastrado'
-    }
-
-    // Verificar duplicidade de documento (CNPJ ou CPF do proprietário)
-    if (createForm.document) {
-      const docNumbers = createForm.document.replace(/\D/g, '')
-      const docField = createForm.document_type === 'cpf' ? 'owner_cpf' : 'cnpj'
-      const { data: existingDoc } = await (supabase as any)
-        .from('salons')
-        .select('id')
-        .eq(docField, docNumbers)
-        .single()
-      if (existingDoc) newErrors.document = `${createForm.document_type.toUpperCase()} já cadastrado`
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+  
 
   const fetchSalons = async () => {
     setIsLoading(true)
@@ -304,10 +244,7 @@ export default function SaloesPage() {
   }
 
   // Criar — Canonical Provisioning Pipeline (F04)
-  const handleCreate = async () => {
-    const isValid = await validateCreateForm()
-    if (!isValid) return
-
+  const handleCreate = async (createForm: any) => {
     setIsSaving(true)
 
     try {
@@ -324,7 +261,7 @@ export default function SaloesPage() {
       if (result.success) {
         setMessage({ type: 'success', text: 'Salão criado e provisionado com sucesso!' })
         setShowCreateDrawer(false)
-        setCreateForm({ name: '', owner_name: '', email: '', phone: '', city: '', state: '', plan: 'basic', professionals_count: '1', document_type: 'cpf', document: '' })
+        
         await fetchSalons() // Reload from DB to get the real record
       } else {
         setMessage({ type: 'error', text: result.error || 'Erro ao criar salão.' })
@@ -335,7 +272,7 @@ export default function SaloesPage() {
     }
 
     setIsSaving(false)
-    setTimeout(() => setMessage(null), 5000)
+    setTimeout(() => setMessage(null), 3000)
   }
 
   // Toggle status - usando Server Action (superadmin only via RPC)
@@ -431,13 +368,7 @@ export default function SaloesPage() {
               className="pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-48 lg:w-64"
             />
           </div>
-          <button
-            onClick={() => setShowCreateDrawer(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium text-sm rounded-xl hover:shadow-lg hover:shadow-emerald-500/20 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Novo Salão</span>
-          </button>
+          
         </div>
       </div>
 
@@ -585,14 +516,7 @@ export default function SaloesPage() {
               ? 'Tente alterar os filtros.'
               : 'Aprove solicitações ou crie manualmente.'}
           </p>
-          {!searchTerm && filterStatus === 'all' && (
-            <button
-              onClick={() => setShowCreateDrawer(true)}
-              className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-xl"
-            >
-              Criar Primeiro Salão
-            </button>
-          )}
+          
         </div>
       )}
 
@@ -723,245 +647,8 @@ export default function SaloesPage() {
         )}
       </AnimatePresence>
 
-      {/* Create Drawer */}
-      <AnimatePresence>
-        {showCreateDrawer && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 z-50"
-              onClick={() => setShowCreateDrawer(false)}
-            />
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed top-3 right-3 bottom-3 w-full max-w-md bg-[#0f1419] z-50 shadow-2xl flex flex-col rounded-3xl border border-white/10"
-              data-lenis-prevent
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-white/10 rounded-t-3xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-white">Novo Salão</h2>
-                    <p className="text-xs text-gray-500">Cadastrar novo estabelecimento</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowCreateDrawer(false)}
-                  className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Nome do Salão *</label>
-                  <input
-                    type="text"
-                    value={createForm.name}
-                    onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                    placeholder="Ex: Salão Beleza Total"
-                    className="w-full px-4 py-3 bg-[#1a2332] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Proprietário *</label>
-                  <input
-                    type="text"
-                    value={createForm.owner_name}
-                    onChange={(e) => setCreateForm({ ...createForm, owner_name: e.target.value })}
-                    placeholder="Nome completo"
-                    className="w-full px-4 py-3 bg-[#1a2332] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* CPF/CNPJ - logo após proprietário */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Documento (CPF ou CNPJ)</label>
-                  <div className="flex gap-2 mb-3">
-                    <button
-                      type="button"
-                      onClick={() => setCreateForm({ ...createForm, document_type: 'cpf', document: '' })}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${createForm.document_type === 'cpf'
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                        : 'bg-[#1a2332] text-gray-400 border border-white/10 hover:border-white/20'
-                        }`}
-                    >
-                      CPF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCreateForm({ ...createForm, document_type: 'cnpj', document: '' })}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${createForm.document_type === 'cnpj'
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                        : 'bg-[#1a2332] text-gray-400 border border-white/10 hover:border-white/20'
-                        }`}
-                    >
-                      CNPJ
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                    <input
-                      type="text"
-                      value={createForm.document}
-                      onChange={(e) => setCreateForm({
-                        ...createForm,
-                        document: createForm.document_type === 'cpf'
-                          ? formatCPF(e.target.value)
-                          : formatCNPJ(e.target.value)
-                      })}
-                      placeholder={createForm.document_type === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'}
-                      className={`w-full pl-12 pr-4 py-3 bg-[#1a2332] border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${errors.document ? 'border-red-500' : 'border-white/10'}`}
-                    />
-                  </div>
-                  {errors.document && <p className="text-red-400 text-xs mt-1">{errors.document}</p>}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Email *</label>
-                    <input
-                      type="email"
-                      value={createForm.email}
-                      onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                      placeholder="email@exemplo.com"
-                      className="w-full px-4 py-3 bg-[#1a2332] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">WhatsApp</label>
-                    <input
-                      type="tel"
-                      value={createForm.phone}
-                      onChange={(e) => setCreateForm({ ...createForm, phone: formatPhone(e.target.value) })}
-                      placeholder="(11) 99999-9999"
-                      className="w-full px-4 py-3 bg-[#1a2332] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Cidade *</label>
-                    <input
-                      type="text"
-                      value={createForm.city}
-                      onChange={(e) => setCreateForm({ ...createForm, city: e.target.value })}
-                      placeholder="São Paulo"
-                      className="w-full px-4 py-3 bg-[#1a2332] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">UF *</label>
-                    <div className="relative">
-                      <select
-                        value={createForm.state}
-                        onChange={(e) => setCreateForm({ ...createForm, state: e.target.value })}
-                        className="w-full px-4 py-3 bg-[#1a2332] border border-white/10 rounded-xl text-white appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                      >
-                        <option value="" className="bg-[#1a2332]">--</option>
-                        {stateOptionsWithNames.map((st) => (
-                          <option key={st.uf} value={st.uf} className="bg-[#1a2332]">
-                            {st.uf}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Plano</label>
-                  <div className="space-y-2">
-                    {Object.entries(planConfig).map(([key, config]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setCreateForm({ ...createForm, plan: key as Salon['plan'] })}
-                        className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-all ${createForm.plan === key
-                          ? 'bg-emerald-500/10 border-emerald-500/50'
-                          : 'bg-[#1a2332] border-white/10 hover:border-white/20'
-                          }`}
-                      >
-                        <div className={`w-10 h-10 bg-gradient-to-br ${config.gradient} rounded-lg flex items-center justify-center`}>
-                          <Star className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1 text-left">
-                          <p className="text-white font-medium">{config.label}</p>
-                        </div>
-                        {createForm.plan === key && (
-                          <CheckCircle className="w-5 h-5 text-emerald-400" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Tamanho da Equipe</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {teamSizeOptions.map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setCreateForm({ ...createForm, professionals_count: opt.value })}
-                        className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${createForm.professionals_count === opt.value
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                          : 'bg-[#1a2332] text-gray-400 border border-white/10 hover:border-white/20'
-                          }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-[#1a2332] rounded-xl p-4 border border-amber-500/20">
-                  <div className="flex gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm text-amber-200 font-medium">Credenciais de acesso</p>
-                      <p className="text-xs text-amber-200/70 mt-1">Credenciais de acesso serão enviadas automaticamente para o email informado.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="p-6 border-t border-white/10 space-y-3">
-                <button
-                  onClick={handleCreate}
-                  disabled={isSaving || !createForm.name || !createForm.email}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                  Criar Salão
-                </button>
-                <button
-                  onClick={() => setShowCreateDrawer(false)}
-                  className="w-full px-6 py-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Edit Drawer */}
+      
+      {/* Edit Drawer (Read-to-Edit Pattern) */}
       <AnimatePresence>
         {showEditDrawer && selectedSalon && (
           <>
@@ -1000,117 +687,195 @@ export default function SaloesPage() {
               </div>
 
               {/* Content */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Nome do Salão</label>
-                  <input
-                    type="text"
-                    value={editForm.name || ''}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#1a2332] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  />
-                </div>
+              <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                
+                {/* DADOS DA EMPRESA */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider">Dados da Empresa</h3>
+                  
+                  <div className="bg-[#1a2332] rounded-xl border border-white/10 divide-y divide-white/5">
+                    
+                    {/* Nome */}
+                    <div className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500 mb-1">Nome do Salão</p>
+                        <input
+                          type="text"
+                          value={editForm.name || ''}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          className="w-full bg-transparent text-white font-medium focus:outline-none border-b border-transparent focus:border-emerald-500 transition-colors py-1"
+                        />
+                      </div>
+                      <Edit3 className="w-4 h-4 text-gray-600" />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Proprietário</label>
-                  <input
-                    type="text"
-                    value={editForm.owner_name || ''}
-                    onChange={(e) => setEditForm({ ...editForm, owner_name: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#1a2332] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Cidade</label>
-                    <input
-                      type="text"
-                      value={editForm.city || ''}
-                      onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#1a2332] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Estado</label>
-                    <div className="space-y-1.5 max-h-32 overflow-y-auto bg-[#1a2332] border border-white/10 rounded-xl p-2">
-                      {stateOptionsWithNames.map((st) => (
-                        <button
-                          key={st.uf}
-                          type="button"
-                          onClick={() => setEditForm({ ...editForm, state: st.uf })}
-                          className={`w-full px-3 py-2 text-sm rounded-lg text-left transition-colors ${editForm.state === st.uf
-                            ? 'bg-emerald-500/20 text-emerald-400'
-                            : 'text-gray-400 hover:bg-white/5'
-                            }`}
-                        >
-                          {st.uf} - {st.name}
-                        </button>
-                      ))}
+                    {/* CNPJ */}
+                    <div className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500 mb-1">CNPJ</p>
+                        <input
+                          type="text"
+                          value={editForm.cnpj || ''}
+                          onChange={(e) => setEditForm({ ...editForm, cnpj: formatCNPJ(e.target.value) })}
+                          placeholder="Não informado"
+                          className="w-full bg-transparent text-white font-medium focus:outline-none border-b border-transparent focus:border-emerald-500 transition-colors py-1 placeholder-gray-700"
+                        />
+                      </div>
+                      <Edit3 className="w-4 h-4 text-gray-600" />
                     </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Plano</label>
+                {/* CONTATO & PROPRIETÁRIO */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider">Contato & Responsável</h3>
+                  
+                  <div className="bg-[#1a2332] rounded-xl border border-white/10 divide-y divide-white/5">
+                    
+                    {/* Proprietário */}
+                    <div className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500 mb-1">Proprietário</p>
+                        <input
+                          type="text"
+                          value={editForm.owner_name || ''}
+                          onChange={(e) => setEditForm({ ...editForm, owner_name: e.target.value })}
+                          className="w-full bg-transparent text-white font-medium focus:outline-none border-b border-transparent focus:border-emerald-500 transition-colors py-1"
+                        />
+                      </div>
+                      <Edit3 className="w-4 h-4 text-gray-600" />
+                    </div>
+
+                    {/* CPF */}
+                    <div className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500 mb-1">CPF do Responsável</p>
+                        <input
+                          type="text"
+                          value={editForm.owner_cpf || ''}
+                          onChange={(e) => setEditForm({ ...editForm, owner_cpf: formatCPF(e.target.value) })}
+                          placeholder="Não informado"
+                          className="w-full bg-transparent text-white font-medium focus:outline-none border-b border-transparent focus:border-emerald-500 transition-colors py-1 placeholder-gray-700"
+                        />
+                      </div>
+                      <Edit3 className="w-4 h-4 text-gray-600" />
+                    </div>
+
+                    {/* Telefone */}
+                    <div className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500 mb-1">WhatsApp</p>
+                        <input
+                          type="text"
+                          value={editForm.phone || ''}
+                          onChange={(e) => setEditForm({ ...editForm, phone: formatPhone(e.target.value) })}
+                          className="w-full bg-transparent text-white font-medium focus:outline-none border-b border-transparent focus:border-emerald-500 transition-colors py-1"
+                        />
+                      </div>
+                      <Edit3 className="w-4 h-4 text-gray-600" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* LOCALIZAÇÃO */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider">Localização</h3>
+                  
+                  <div className="bg-[#1a2332] rounded-xl border border-white/10 divide-y divide-white/5">
+                    
+                    {/* Cidade */}
+                    <div className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500 mb-1">Cidade</p>
+                        <input
+                          type="text"
+                          value={editForm.city || ''}
+                          onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                          className="w-full bg-transparent text-white font-medium focus:outline-none border-b border-transparent focus:border-emerald-500 transition-colors py-1"
+                        />
+                      </div>
+                      <Edit3 className="w-4 h-4 text-gray-600" />
+                    </div>
+
+                    {/* Estado */}
+                    <div className="p-4">
+                      <p className="text-xs text-gray-500 mb-2">Estado</p>
+                      <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+                        {stateOptionsWithNames.map((st) => (
+                          <button
+                            key={st.uf}
+                            type="button"
+                            onClick={() => setEditForm({ ...editForm, state: st.uf })}
+                            className={`w-full px-3 py-2 text-sm rounded-lg text-left transition-colors ${editForm.state === st.uf
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : 'text-gray-400 hover:bg-white/5'
+                              }`}
+                          >
+                            {st.uf} - {st.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SISTEMA & ASSINATURA */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider">Sistema</h3>
+                  
+                  {/* Plano */}
                   <div className="space-y-2">
+                    <p className="text-xs text-gray-500">Plano Ativo</p>
                     {Object.entries(planConfig).map(([key, config]) => (
                       <button
                         key={key}
                         type="button"
                         onClick={() => setEditForm({ ...editForm, plan: key as Salon['plan'] })}
-                        className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-all ${editForm.plan === key
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${editForm.plan === key
                           ? 'bg-emerald-500/10 border-emerald-500/50'
                           : 'bg-[#1a2332] border-white/10 hover:border-white/20'
                           }`}
                       >
-                        <div className={`w-10 h-10 bg-gradient-to-br ${config.gradient} rounded-lg flex items-center justify-center`}>
-                          <Star className="w-5 h-5 text-white" />
+                        <div className={`w-8 h-8 bg-gradient-to-br ${config.gradient} rounded-lg flex items-center justify-center`}>
+                          <Star className="w-4 h-4 text-white" />
                         </div>
                         <div className="flex-1 text-left">
-                          <p className="text-white font-medium">{config.label}</p>
+                          <p className="text-white font-medium text-sm">{config.label}</p>
                         </div>
                         {editForm.plan === key && (
-                          <CheckCircle className="w-5 h-5 text-emerald-400" />
+                          <CheckCircle className="w-4 h-4 text-emerald-400" />
                         )}
                       </button>
                     ))}
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
-                  <div className="space-y-2">
+                  {/* Status */}
+                  <div className="space-y-2 pt-2">
+                    <p className="text-xs text-gray-500">Status da Conta</p>
                     {Object.entries(statusConfig).map(([key, config]) => (
                       <button
                         key={key}
                         type="button"
                         onClick={() => setEditForm({ ...editForm, status: key as Salon['status'] })}
-                        className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-all ${editForm.status === key
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${editForm.status === key
                           ? 'bg-emerald-500/10 border-emerald-500/50'
                           : 'bg-[#1a2332] border-white/10 hover:border-white/20'
                           }`}
                       >
-                        <span className={`w-3 h-3 rounded-full ${config.dot}`} />
-                        <p className="text-white font-medium flex-1 text-left">{config.label}</p>
+                        <span className={`w-2.5 h-2.5 rounded-full ${config.dot}`} />
+                        <p className="text-white font-medium flex-1 text-left text-sm">{config.label}</p>
                         {editForm.status === key && (
-                          <CheckCircle className="w-5 h-5 text-emerald-400" />
+                          <CheckCircle className="w-4 h-4 text-emerald-400" />
                         )}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-[#1a2332] rounded-xl p-4 border border-white/10">
-                  <div className="flex items-center gap-2 text-gray-400 text-sm">
-                    <Calendar className="w-4 h-4" />
-                    <span>Cadastrado em {formatDate(selectedSalon.created_at)}</span>
-                  </div>
-                </div>
               </div>
 
               {/* Footer */}
-              <div className="p-6 border-t border-white/10 space-y-3">
+              <div className="p-6 border-t border-white/10 space-y-3 bg-[#0f1419]">
                 <button
                   onClick={handleSaveEdit}
                   disabled={isSaving}
