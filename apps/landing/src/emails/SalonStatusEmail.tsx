@@ -43,7 +43,7 @@ export const SalonStatusEmail = ({
           color: '#f59e0b', // amber-500
           message: 'Sua conta foi suspensa temporariamente devido a uma possível violação de nossos termos de uso ou pendência de verificação. Para regularizar sua situação e restaurar o acesso, por favor entre em contato com nosso suporte.',
           actionText: 'Falar com o Suporte',
-          actionUrl: 'https://poderosaagenda.com.br/suporte',
+          actionUrl: 'https://api.whatsapp.com/send?phone=5511999999999&text=Olá,%20preciso%20de%20ajuda%20com%20minha%20conta',
         };
       case 'overdue':
         return {
@@ -62,7 +62,7 @@ export const SalonStatusEmail = ({
           color: '#6b7280', // gray-500
           message: 'Informamos que a conta do seu salão foi inativada pelo administrador. Durante este período, o acesso ao sistema estará bloqueado. Se você acredita que isso é um erro, entre em contato com nosso suporte.',
           actionText: 'Falar com o Suporte',
-          actionUrl: 'https://poderosaagenda.com.br/suporte',
+          actionUrl: 'https://api.whatsapp.com/send?phone=5511999999999&text=Olá,%20minha%20conta%20foi%20inativada%20e%20preciso%20de%20ajuda',
         };
     }
   };
