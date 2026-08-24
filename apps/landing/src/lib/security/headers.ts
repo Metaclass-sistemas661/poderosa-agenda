@@ -90,13 +90,14 @@ export function buildCSP(options?: {
             'data:',
         ],
 
-        // Conexões: self + Supabase (REST, Auth, Realtime, Storage)
+        // Conexões: self + Supabase (REST, Auth, Realtime, Storage) + ViaCEP
         'connect-src': [
             "'self'",
             `https://${supabaseProjectRef}`,
             `wss://${supabaseProjectRef}`,  // Supabase Realtime WebSocket
             'https://*.supabase.co',
             'wss://*.supabase.co',
+            'https://viacep.com.br',
             process.env.NODE_ENV === 'development' ? 'ws://localhost:*' : '',
             process.env.NODE_ENV === 'development' ? 'http://localhost:*' : '',
         ].filter(Boolean),
