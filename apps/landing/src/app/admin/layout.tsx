@@ -377,7 +377,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 overflow-y-auto px-4 lg:px-0 pb-6">
+          <main data-lenis-prevent className="flex-1 overflow-y-auto px-4 lg:px-0 pb-6">
             <div className="bg-[#0f1419] lg:bg-transparent lg:rounded-2xl">
               {children}
             </div>

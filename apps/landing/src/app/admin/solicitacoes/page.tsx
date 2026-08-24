@@ -385,6 +385,7 @@ export default function SolicitacoesPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-[#1a2332] rounded-2xl p-6 max-w-lg w-full max-h-[90vh] flex flex-col"
+              data-lenis-prevent
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4 flex-shrink-0">

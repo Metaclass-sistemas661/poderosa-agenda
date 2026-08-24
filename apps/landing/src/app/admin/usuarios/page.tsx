@@ -570,6 +570,7 @@ export default function UsuariosPage() {
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed top-3 right-3 bottom-3 w-full max-w-md bg-[#0f1419] z-50 shadow-2xl flex flex-col rounded-3xl border border-white/10"
+              data-lenis-prevent
             >
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-white/10 rounded-t-3xl">
@@ -763,6 +764,7 @@ export default function UsuariosPage() {
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed top-0 right-0 h-full w-full max-w-md bg-[#0f1419] z-50 shadow-2xl flex flex-col"
+              data-lenis-prevent
             >
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-white/10">
