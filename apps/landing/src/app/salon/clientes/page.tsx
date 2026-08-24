@@ -12,6 +12,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { useViaCEP } from '@/hooks/useViaCEP'
 
 interface Client {
   id: string
@@ -61,6 +62,8 @@ export default function ClientesPage() {
   const [searchTerm, setSearchTerm] = useState(urlSearch)
   const { salonId } = useSalonLayout()
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  
+  const { fetchCep, formatCEP, isLoading: isLoadingCep, error: cepError, setError: setCepError } = useViaCEP()
 
   const [showCreateDrawer, setShowCreateDrawer] = useState(false)
   const [showViewDrawer, setShowViewDrawer] = useState(false)
@@ -784,11 +787,40 @@ export default function ClientesPage() {
                   <div className="pt-4 border-t border-slate-200 dark:border-white/10 space-y-4">
                     <label className="block text-xs font-bold uppercase text-slate-500">Endereço Completo</label>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="col-span-1"><input type="text" value={createForm.address_zip} onChange={(e) => setCreateForm({ ...createForm, address_zip: e.target.value })} placeholder="CEP" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
-                      <div className="col-span-2"><input type="text" value={createForm.address_street} onChange={(e) => setCreateForm({ ...createForm, address_street: e.target.value })} placeholder="Rua / Avenida" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+                      <div className="col-span-1">
+                        <div className="relative">
+                          <input type="text" value={createForm.address_zip} onChange={async (e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            const formatted = formatCEP(e.target.value);
+                            setCreateForm({ ...createForm, address_zip: formatted });
+                            if (val.length === 8) {
+                              const result = await fetchCep(val);
+                              if (result) {
+                                setCreateForm(prev => ({
+                                  ...prev,
+                                  address_zip: formatted,
+                                  address_street: result.isGeneral ? '' : result.address,
+                                  address_neighborhood: result.isGeneral ? '' : result.neighborhood,
+                                  address_city: result.city,
+                                  address_state: result.state
+                                }));
+                                setTimeout(() => {
+                                  const nextId = result.isGeneral ? 'create-street' : 'create-number';
+                                  document.getElementById(nextId)?.focus();
+                                }, 50);
+                              }
+                            } else {
+                              setCepError(null);
+                            }
+                          }} placeholder="CEP" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                          {isLoadingCep && <div className="absolute right-3 top-3.5"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>}
+                        </div>
+                        {cepError && <p className="text-xs text-red-400 mt-1">{cepError}</p>}
+                      </div>
+                      <div className="col-span-2"><input id="create-street" type="text" value={createForm.address_street} onChange={(e) => setCreateForm({ ...createForm, address_street: e.target.value })} placeholder="Rua / Avenida" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="col-span-1"><input type="text" value={createForm.address_number} onChange={(e) => setCreateForm({ ...createForm, address_number: e.target.value })} placeholder="Número" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+                      <div className="col-span-1"><input id="create-number" type="text" value={createForm.address_number} onChange={(e) => setCreateForm({ ...createForm, address_number: e.target.value })} placeholder="Número" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
                       <div className="col-span-2"><input type="text" value={createForm.address_neighborhood} onChange={(e) => setCreateForm({ ...createForm, address_neighborhood: e.target.value })} placeholder="Bairro" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -900,11 +932,40 @@ export default function ClientesPage() {
                   <div className="pt-4 border-t border-slate-200 dark:border-white/10 space-y-4">
                     <label className="block text-xs font-bold uppercase text-slate-500">Endereço</label>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="col-span-1"><input type="text" value={editForm.address_zip} onChange={e => setEditForm({ ...editForm, address_zip: e.target.value })} placeholder="CEP" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
-                      <div className="col-span-2"><input type="text" value={editForm.address_street} onChange={e => setEditForm({ ...editForm, address_street: e.target.value })} placeholder="Rua / Avenida" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+                      <div className="col-span-1">
+                        <div className="relative">
+                          <input type="text" value={editForm.address_zip} onChange={async (e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            const formatted = formatCEP(e.target.value);
+                            setEditForm({ ...editForm, address_zip: formatted });
+                            if (val.length === 8) {
+                              const result = await fetchCep(val);
+                              if (result) {
+                                setEditForm(prev => ({
+                                  ...prev,
+                                  address_zip: formatted,
+                                  address_street: result.isGeneral ? '' : result.address,
+                                  address_neighborhood: result.isGeneral ? '' : result.neighborhood,
+                                  address_city: result.city,
+                                  address_state: result.state
+                                }));
+                                setTimeout(() => {
+                                  const nextId = result.isGeneral ? 'edit-street' : 'edit-number';
+                                  document.getElementById(nextId)?.focus();
+                                }, 50);
+                              }
+                            } else {
+                              setCepError(null);
+                            }
+                          }} placeholder="CEP" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                          {isLoadingCep && <div className="absolute right-3 top-3.5"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>}
+                        </div>
+                        {cepError && <p className="text-xs text-red-400 mt-1">{cepError}</p>}
+                      </div>
+                      <div className="col-span-2"><input id="edit-street" type="text" value={editForm.address_street} onChange={e => setEditForm({ ...editForm, address_street: e.target.value })} placeholder="Rua / Avenida" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="col-span-1"><input type="text" value={editForm.address_number} onChange={e => setEditForm({ ...editForm, address_number: e.target.value })} placeholder="Número" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+                      <div className="col-span-1"><input id="edit-number" type="text" value={editForm.address_number} onChange={e => setEditForm({ ...editForm, address_number: e.target.value })} placeholder="Número" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
                       <div className="col-span-2"><input type="text" value={editForm.address_neighborhood} onChange={e => setEditForm({ ...editForm, address_neighborhood: e.target.value })} placeholder="Bairro" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">

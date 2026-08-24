@@ -29,6 +29,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { createSalonManual } from '@/app/actions/provisioning'
 import { changeSalonStatus, deleteSalon, updateSalonDetails } from '@/app/actions/salon-management'
+import { useViaCEP } from '@/hooks/useViaCEP'
 
 interface Salon {
   id: string
@@ -159,25 +160,7 @@ export default function SaloesPage() {
   // Form state
   const [editForm, setEditForm] = useState<Partial<Salon>>({})
 
-  const fetchAddressByCep = async (cep: string) => {
-    const cleanCep = cep.replace(/\D/g, '');
-    if (cleanCep.length !== 8) return;
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
-      const data = await res.json();
-      if (!data.erro) {
-        setEditForm(prev => ({
-          ...prev,
-          address: data.logradouro,
-          neighborhood: data.bairro,
-          city: data.localidade,
-          state: data.uf
-        }));
-      }
-    } catch (e) {
-      console.error('Erro ao buscar CEP', e);
-    }
-  };
+  const { fetchCep, formatCEP, isLoading: isLoadingCep, error: cepError, setError: setCepError } = useViaCEP();
   
 
   const fetchSalons = async () => {
@@ -857,23 +840,49 @@ export default function SaloesPage() {
                   
                   <div className="bg-[#1a2332] rounded-xl border border-white/10 divide-y divide-white/5">
                     {/* CEP */}
-                    <div className="p-4 flex items-center justify-between gap-4">
-                      <div className="flex-1">
-                        <p className="text-xs text-gray-500 mb-1">CEP (Busca Automática)</p>
-                        <input
-                          type="text"
-                          value={editForm.zip_code || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/\D/g, '').slice(0, 8);
-                            const formatted = val.replace(/(\d{5})(\d)/, '$1-$2');
-                            setEditForm({ ...editForm, zip_code: formatted });
-                            if (val.length === 8) fetchAddressByCep(val);
-                          }}
-                          placeholder="00000-000"
-                          className="w-full bg-transparent text-white font-medium focus:outline-none border-b border-transparent focus:border-emerald-500 transition-colors py-1 placeholder-gray-700"
-                        />
+                    <div className="p-4 flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500 mb-1 flex items-center gap-2">
+                            CEP (Busca Automática)
+                            {isLoadingCep && <Loader2 className="w-3 h-3 text-emerald-400 animate-spin" />}
+                          </p>
+                          <input
+                            type="text"
+                            value={editForm.zip_code || ''}
+                            onChange={async (e) => {
+                              const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                              const formatted = formatCEP(e.target.value);
+                              setEditForm(prev => ({ ...prev, zip_code: formatted }));
+                              
+                              if (val.length === 8) {
+                                const result = await fetchCep(val);
+                                if (result) {
+                                  setEditForm(prev => ({
+                                    ...prev,
+                                    address: result.isGeneral ? '' : result.address,
+                                    neighborhood: result.isGeneral ? '' : result.neighborhood,
+                                    city: result.city,
+                                    state: result.state
+                                  }));
+                                  
+                                  // Foco automático
+                                  setTimeout(() => {
+                                    const nextInput = document.getElementById(result.isGeneral ? 'address-input' : 'address-number-input');
+                                    if (nextInput) nextInput.focus();
+                                  }, 50);
+                                }
+                              } else {
+                                setCepError(null);
+                              }
+                            }}
+                            placeholder="00000-000"
+                            className="w-full bg-transparent text-white font-medium focus:outline-none border-b border-transparent focus:border-emerald-500 transition-colors py-1 placeholder-gray-700"
+                          />
+                        </div>
+                        <Edit3 className="w-4 h-4 text-gray-600" />
                       </div>
-                      <Edit3 className="w-4 h-4 text-gray-600" />
+                      {cepError && <p className="text-xs text-red-400 mt-1">{cepError}</p>}
                     </div>
 
                     {/* Endereço e Número */}
@@ -881,6 +890,7 @@ export default function SaloesPage() {
                       <div className="col-span-2">
                         <p className="text-xs text-gray-500 mb-1">Endereço</p>
                         <input
+                          id="address-input"
                           type="text"
                           value={editForm.address || ''}
                           onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
@@ -891,6 +901,7 @@ export default function SaloesPage() {
                       <div className="">
                         <p className="text-xs text-gray-500 mb-1">Número</p>
                         <input
+                          id="address-number-input"
                           type="text"
                           value={editForm.address_number || ''}
                           onChange={(e) => setEditForm({ ...editForm, address_number: e.target.value })}

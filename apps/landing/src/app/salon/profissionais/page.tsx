@@ -12,6 +12,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { getSafeErrorMessage } from '@/lib/errors/toast'
 import { useSalonLayout } from '@/contexts/SalonLayoutContext'
+import { useViaCEP } from '@/hooks/useViaCEP'
 import {
   AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
@@ -115,6 +116,8 @@ export default function ProfissionaisDashboard() {
   const [createForm, setCreateForm] = useState({ ...defaultForm })
   const [editForm, setEditForm] = useState({ ...defaultForm })
   const [isUploading, setIsUploading] = useState(false)
+
+  const { fetchCep, formatCEP, isLoading: isLoadingCep, error: cepError, setError: setCepError } = useViaCEP()
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, isCreate: boolean) => {
     try {
@@ -541,13 +544,57 @@ export default function ProfissionaisDashboard() {
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-2 mt-4 text-center border-t border-slate-100 dark:border-white/10 pt-4">Endereço Completo</label>
                     <div className="grid grid-cols-6 gap-3">
                       <div className="col-span-2">
-                        <input type="text" value={showCreateDrawer ? createForm.address_zip : editForm.address_zip} onChange={(e) => showCreateDrawer ? setCreateForm({ ...createForm, address_zip: e.target.value }) : setEditForm({ ...editForm, address_zip: e.target.value })} placeholder="CEP" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
+                        <div className="relative">
+                          <input type="text" value={showCreateDrawer ? createForm.address_zip : editForm.address_zip} onChange={async (e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            const formatted = formatCEP(e.target.value);
+                            
+                            if (showCreateDrawer) {
+                              setCreateForm({ ...createForm, address_zip: formatted });
+                            } else {
+                              setEditForm({ ...editForm, address_zip: formatted });
+                            }
+                            
+                            if (val.length === 8) {
+                              const result = await fetchCep(val);
+                              if (result) {
+                                if (showCreateDrawer) {
+                                  setCreateForm(prev => ({
+                                    ...prev,
+                                    address_zip: formatted,
+                                    address_street: result.isGeneral ? '' : result.address,
+                                    address_neighborhood: result.isGeneral ? '' : result.neighborhood,
+                                    address_city: result.city,
+                                    address_state: result.state
+                                  }));
+                                } else {
+                                  setEditForm(prev => ({
+                                    ...prev,
+                                    address_zip: formatted,
+                                    address_street: result.isGeneral ? '' : result.address,
+                                    address_neighborhood: result.isGeneral ? '' : result.neighborhood,
+                                    address_city: result.city,
+                                    address_state: result.state
+                                  }));
+                                }
+                                setTimeout(() => {
+                                  const nextId = result.isGeneral ? 'pro-street' : 'pro-number';
+                                  document.getElementById(nextId)?.focus();
+                                }, 50);
+                              }
+                            } else {
+                              setCepError(null);
+                            }
+                          }} placeholder="CEP" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
+                          {isLoadingCep && <div className="absolute right-3 top-3.5"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>}
+                        </div>
+                        {cepError && <p className="text-xs text-red-400 mt-1">{cepError}</p>}
                       </div>
                       <div className="col-span-4">
-                        <input type="text" value={showCreateDrawer ? createForm.address_street : editForm.address_street} onChange={(e) => showCreateDrawer ? setCreateForm({ ...createForm, address_street: e.target.value }) : setEditForm({ ...editForm, address_street: e.target.value })} placeholder="Rua / Avenida" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
+                        <input id="pro-street" type="text" value={showCreateDrawer ? createForm.address_street : editForm.address_street} onChange={(e) => showCreateDrawer ? setCreateForm({ ...createForm, address_street: e.target.value }) : setEditForm({ ...editForm, address_street: e.target.value })} placeholder="Rua / Avenida" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
                       </div>
                       <div className="col-span-2">
-                        <input type="text" value={showCreateDrawer ? createForm.address_number : editForm.address_number} onChange={(e) => showCreateDrawer ? setCreateForm({ ...createForm, address_number: e.target.value }) : setEditForm({ ...editForm, address_number: e.target.value })} placeholder="Número" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
+                        <input id="pro-number" type="text" value={showCreateDrawer ? createForm.address_number : editForm.address_number} onChange={(e) => showCreateDrawer ? setCreateForm({ ...createForm, address_number: e.target.value }) : setEditForm({ ...editForm, address_number: e.target.value })} placeholder="Número" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
                       </div>
                       <div className="col-span-4">
                         <input type="text" value={showCreateDrawer ? createForm.address_neighborhood : editForm.address_neighborhood} onChange={(e) => showCreateDrawer ? setCreateForm({ ...createForm, address_neighborhood: e.target.value }) : setEditForm({ ...editForm, address_neighborhood: e.target.value })} placeholder="Bairro" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
