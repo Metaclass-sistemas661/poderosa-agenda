@@ -3,9 +3,8 @@ import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 import SalonStatusEmail from '@/emails/SalonStatusEmail';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(request: Request) {
+  const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy');
   // Create Supabase admin client (bypasses RLS)
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
