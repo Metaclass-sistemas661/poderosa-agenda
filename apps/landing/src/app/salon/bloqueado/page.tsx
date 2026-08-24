@@ -28,8 +28,8 @@ export default function SalonBloqueadoPage() {
             case 'SALON_INACTIVE':
             default:
                 return {
-                    title: 'Conta Inativa',
-                    description: 'Esta conta foi desativada pelo administrador.',
+                    title: 'O salão está inativo',
+                    description: 'Favor entrar em contato com o suporte.',
                     icon: '🔒',
                     color: 'gray'
                 }

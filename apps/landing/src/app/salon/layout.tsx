@@ -272,14 +272,36 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
       )
       .subscribe()
 
+    // Realtime Kill-Switch: Listen for salon status changes
+    const salonChannel = supabase
+      .channel(`salon-status-${user.salon_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'salons',
+          filter: `id=eq.${user.salon_id}`
+        },
+        (payload: any) => {
+          const newStatus = payload.new.status
+          if (newStatus === 'inactive' || newStatus === 'suspended') {
+            const reason = newStatus === 'inactive' ? 'SALON_INACTIVE' : 'SALON_SUSPENDED'
+            router.push(`/salon/bloqueado?reason=${reason}&salon=${encodeURIComponent(payload.new.name)}`)
+          }
+        }
+      )
+      .subscribe()
+
     // Refresh notifications every 5 minutes as backup
     const interval = setInterval(fetchNotifications, 300000)
 
     return () => {
       clearInterval(interval)
       supabase.removeChannel(channel)
+      supabase.removeChannel(salonChannel)
     }
-  }, [user?.salon_id])
+  }, [user?.salon_id, router])
 
   const checkAuth = async () => {
     try {
