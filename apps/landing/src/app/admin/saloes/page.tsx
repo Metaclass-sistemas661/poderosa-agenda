@@ -41,9 +41,12 @@ interface Salon {
   plan: 'basic' | 'pro' | 'enterprise'
   status: 'active' | 'inactive' | 'suspended'
   professionals_count: string
-  cnpj: string |address: string | null\n  zip_code: string | null\n  address_number: string | null\n  neighborhood: string | null
+  cnpj: string | null
   owner_cpf: string | null
   address: string | null
+  zip_code: string | null
+  address_number: string | null
+  neighborhood: string | null
   created_at: string
   updated_at: string
 }
@@ -185,7 +188,7 @@ export default function SaloesPage() {
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (data) setSalons(data)
+    if (data) setSalons(data as unknown as Salon[])
     if (error) console.error('Erro:', error)
     setIsLoading(false)
   }
