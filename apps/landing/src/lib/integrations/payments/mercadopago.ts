@@ -1,5 +1,5 @@
 import { log } from '@/lib/observability/logger'
-import { PaymentGateway, PixChargeRequest, PixChargeResponse } from './types'
+import { PaymentGateway, PixChargeRequest, PixChargeResponse, CheckoutPreferenceRequest } from './types'
 
 export class MercadoPagoGateway implements PaymentGateway {
   private accessToken: string = ''
@@ -78,5 +78,61 @@ export class MercadoPagoGateway implements PaymentGateway {
       return { chargeId: String(payload.data.id), status }
     }
     return null
+  }
+
+  async createCheckoutPreference(request: CheckoutPreferenceRequest): Promise<string> {
+    if (!this.accessToken) throw new Error('MercadoPago is not initialized')
+
+    try {
+      const body: any = {
+        items: [
+          {
+            title: request.title,
+            quantity: 1,
+            unit_price: request.amount,
+            currency_id: 'BRL',
+          }
+        ],
+        payer: {
+          email: request.customerEmail,
+          name: request.customerName,
+        },
+        external_reference: request.referenceId,
+        payment_methods: {
+          excluded_payment_types: [
+            { id: 'ticket' } // Remove boleto se desejar, mas padrão MP é deixar
+          ],
+        }
+      }
+
+      // Suporte explícito a parcelamento somente para plano anual
+      if (request.isAnnual) {
+        body.payment_methods.installments = 12 // Permite até 12x
+      } else {
+        body.payment_methods.installments = 1 // Plano mensal não parcela
+      }
+
+      const response = await fetch(`${this.baseUrl}/checkout/preferences`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'MercadoPago Checkout Preference API Error')
+      }
+
+      log.info('MercadoPago Checkout Preference created', { preferenceId: data.id })
+
+      return data.init_point
+    } catch (error) {
+      log.error('Failed to create MercadoPago Checkout Preference', error as Error)
+      throw error
+    }
   }
 }

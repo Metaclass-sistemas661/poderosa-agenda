@@ -3,8 +3,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { redeApi, DEFAULT_PLAN_PRICE, DEFAULT_PLAN_TITLE } from '@/lib/rede'
+import { createPaymentGateway } from '@/lib/integrations/payments'
 import { render } from '@react-email/render'
+
+const DEFAULT_PLAN_PRICE = 49.90;
+const DEFAULT_PLAN_TITLE = "Assinatura Poderosa Agenda (Mensal)";
 import ApprovalPaymentEmail from '@/emails/ApprovalPaymentEmail'
 import { resend, EMAIL_FROM } from '@/lib/resend'
 
@@ -101,17 +104,28 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
             return { success: false, error: 'Esta solicitação já foi processada.' }
         }
 
-        // 3. Generate Rede Checkout Link (Stub)
-        const paymentLink = await redeApi.generateCheckoutLink({
-            amount: DEFAULT_PLAN_PRICE,
-            referenceId: requestId,
-            customerEmail: request.email,
-            customerName: request.owner_name,
-        });
+        // 3. Generate Mercado Pago Checkout Link
+        const mercadoPagoToken = process.env.MERCADOPAGO_ACCESS_TOKEN || ''
+        const paymentGateway = createPaymentGateway('mercado_pago', mercadoPagoToken)
+        
+        let paymentLink = ''
+        
+        if (paymentGateway.createCheckoutPreference) {
+            paymentLink = await paymentGateway.createCheckoutPreference({
+                title: DEFAULT_PLAN_TITLE,
+                amount: DEFAULT_PLAN_PRICE,
+                referenceId: requestId,
+                customerEmail: request.email,
+                customerName: request.owner_name,
+                isAnnual: false // Mensal, sem parcelamento (conforme regra de negócio)
+            })
+        } else {
+            throw new Error('Gateway Mercado Pago não suporta links de checkout')
+        }
 
         if (!paymentLink) {
-            console.error('[PROVISIONING] Failed to generate Rede link');
-            return { success: false, error: 'Falha ao gerar link de pagamento na Rede.' }
+            console.error('[PROVISIONING] Failed to generate Mercado Pago link');
+            return { success: false, error: 'Falha ao gerar link de pagamento no Mercado Pago.' }
         }
 
         // 4. Update request status

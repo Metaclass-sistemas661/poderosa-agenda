@@ -15,6 +15,15 @@ export interface PixChargeResponse {
   gateway: 'asaas' | 'mercado_pago' | 'stripe'
 }
 
+export interface CheckoutPreferenceRequest {
+  title: string
+  amount: number
+  referenceId: string
+  customerEmail: string
+  customerName: string
+  isAnnual?: boolean // Define se permite parcelamento (se true)
+}
+
 export interface PaymentGateway {
   /**
    * Inicializa o gateway com as credenciais do salão
@@ -25,6 +34,11 @@ export interface PaymentGateway {
    * Gera uma cobrança via Pix Dinâmico
    */
   createPixCharge(request: PixChargeRequest): Promise<PixChargeResponse>
+
+  /**
+   * Gera um link de Checkout (Preference)
+   */
+  createCheckoutPreference?(request: CheckoutPreferenceRequest): Promise<string>
 
   /**
    * Verifica o status de um pagamento
