@@ -296,7 +296,7 @@ async function completeProvisioning(
         // ========================================
         // STEP 1: Validate & Lock Access Request
         // ========================================
-        startStep('validate_request', { requestId })
+        currentStep = startStep('validate_request', { requestId })
 
         // Fetch and lock the access request
         const { data: request, error: fetchError } = await supabase
@@ -340,7 +340,7 @@ async function completeProvisioning(
         // ========================================
         // STEP 2: Create Auth User
         // ========================================
-        startStep('create_auth_user', { email: request.email })
+        currentStep = startStep('create_auth_user', { email: request.email })
 
         const temporaryPassword = generateTemporaryPassword()
 
@@ -393,7 +393,7 @@ async function completeProvisioning(
         // ========================================
         // STEP 3: Create Salon Record
         // ========================================
-        startStep('create_salon', {
+        currentStep = startStep('create_salon', {
             name: request.salon_name,
             city: request.city,
             state: request.state
@@ -431,7 +431,7 @@ async function completeProvisioning(
         // ========================================
         // STEP 4: Create Admin User Record
         // ========================================
-        startStep('create_admin_user', {
+        currentStep = startStep('create_admin_user', {
             userId,
             salonId: salon.id,
             role: 'owner'
@@ -465,7 +465,7 @@ async function completeProvisioning(
         // ========================================
         // STEP 5: Send Welcome Email
         // ========================================
-        startStep('send_welcome_email', {
+        currentStep = startStep('send_welcome_email', {
             email: request.email,
             salonName: request.salon_name
         })
@@ -517,7 +517,7 @@ async function completeProvisioning(
         // ========================================
         // STEP 6: Update Access Request Status
         // ========================================
-        startStep('finalize_request', { requestId })
+        currentStep = startStep('finalize_request', { requestId })
 
         const { error: finalizeError } = await supabase
             .from('access_requests')
@@ -560,8 +560,13 @@ async function completeProvisioning(
 
         console.error('[MP_WEBHOOK] Provisioning failed with unexpected error:', error)
 
-        if (currentStep && currentStep.status === 'started') {
-            failStep(error instanceof Error ? error : new Error(errorMessage))
+        // TypeScript narrowing: capture currentStep value before checking
+        // This works around closure analysis in catch blocks
+        if (currentStep) {
+            const stepStatus = currentStep.status
+            if (stepStatus === 'started') {
+                failStep(error instanceof Error ? error : new Error(errorMessage))
+            }
         }
 
         // Update access request with error

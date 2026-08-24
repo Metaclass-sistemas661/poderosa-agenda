@@ -22,6 +22,17 @@ import { supabase } from '@/lib/supabase'
 import { approveAndProvisionSalon, rejectSalonRequest } from '@/app/actions/provisioning'
 import { toast } from 'sonner'
 
+// Enterprise-grade Access Request status type
+// Includes all lifecycle states for the full onboarding flow
+type AccessRequestStatus =
+  | 'pending'           // Initial submission
+  | 'approved'          // Admin approved, ready for payment or provisioning
+  | 'rejected'          // Admin rejected
+  | 'awaiting_payment'  // Waiting for payment confirmation
+  | 'provisioning'      // Payment confirmed, tenant being created
+  | 'payment_confirmed' // Payment received, ready for provisioning
+  | 'failed'            // Provisioning failed
+
 interface AccessRequest {
   id: string
   salon_name: string
@@ -32,8 +43,23 @@ interface AccessRequest {
   state: string
   professionals: string
   message: string | null
-  status: 'pending' | 'approved' | 'rejected' | 'awaiting_payment'
+  status: AccessRequestStatus
+  // Enterprise Onboarding Fields
+  payment_status?: 'pending' | 'approved' | 'rejected' | 'refunded' | null
+  payment_reference?: string | null
+  payment_id?: string | null
+  onboarding_stage?: string | null
+  provisioned_salon_id?: string | null
+  provisioned_user_id?: string | null
+  provisioning_attempts?: number
+  provisioning_error?: string | null
+  // Address fields
+  address_zip?: string | null
+  address_street?: string | null
+  address_number?: string | null
+  address_neighborhood?: string | null
   created_at: string
+  updated_at?: string
 }
 
 export default function SolicitacoesPage() {
@@ -41,7 +67,7 @@ export default function SolicitacoesPage() {
   const [requests, setRequests] = useState<AccessRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedRequest, setSelectedRequest] = useState<AccessRequest | null>(null)
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'awaiting_payment'>('all')
+  const [filterStatus, setFilterStatus] = useState<'all' | AccessRequestStatus>('all')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   // Carregar solicitações
@@ -141,11 +167,15 @@ export default function SolicitacoesPage() {
     })
   }
 
-  const statusConfig = {
+  // Status configuration for all access request lifecycle states
+  const statusConfig: Record<AccessRequestStatus, { label: string; color: string; dot: string }> = {
     pending: { label: 'Pendente', color: 'bg-amber-500/20 text-amber-400', dot: 'bg-amber-400' },
     awaiting_payment: { label: 'Aguard. Pagamento', color: 'bg-blue-500/20 text-blue-400', dot: 'bg-blue-400' },
     approved: { label: 'Aprovada', color: 'bg-emerald-500/20 text-emerald-400', dot: 'bg-emerald-400' },
     rejected: { label: 'Rejeitada', color: 'bg-red-500/20 text-red-400', dot: 'bg-red-400' },
+    provisioning: { label: 'Provisionando', color: 'bg-cyan-500/20 text-cyan-400', dot: 'bg-cyan-400' },
+    payment_confirmed: { label: 'Pago', color: 'bg-green-500/20 text-green-400', dot: 'bg-green-400' },
+    failed: { label: 'Falhou', color: 'bg-rose-500/20 text-rose-400', dot: 'bg-rose-400' },
   }
 
   return (

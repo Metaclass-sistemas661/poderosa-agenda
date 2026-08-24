@@ -27,6 +27,10 @@ import { supabase } from '@/lib/supabase'
 import { getSafeErrorMessage } from '@/lib/errors/toast'
 import type { Json } from '@/lib/database.types'
 
+// Enterprise-grade Admin User role type
+// Includes all roles for the full permission hierarchy
+type AdminUserRole = 'superadmin' | 'owner' | 'admin' | 'manager' | 'support' | 'viewer'
+
 interface AdminUser {
   id: string
   user_id: string | null
@@ -34,10 +38,15 @@ interface AdminUser {
   email: string
   cpf: string | null
   phone: string | null
-  role: 'superadmin' | 'admin' | 'manager' | 'support' | 'viewer'
+  role: AdminUserRole
   permissions: Json
   salon_id: string | null
   salon?: { id: string; name: string } | null
+  // Provisioning fields
+  must_change_password?: boolean
+  password_changed_at?: string | null
+  provisioned_at?: string | null
+  provisioned_by_request_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -48,8 +57,10 @@ interface Salon {
   status: string
 }
 
-const roleConfig = {
+// Role configuration for all admin user roles in the system
+const roleConfig: Record<AdminUserRole, { label: string; color: string; gradient: string }> = {
   superadmin: { label: 'Super Admin', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', gradient: 'from-purple-500 to-indigo-600' },
+  owner: { label: 'Proprietário', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30', gradient: 'from-rose-500 to-pink-600' },
   admin: { label: 'Administrador', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', gradient: 'from-emerald-500 to-teal-600' },
   manager: { label: 'Gerente', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', gradient: 'from-blue-500 to-cyan-600' },
   support: { label: 'Suporte', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', gradient: 'from-amber-500 to-orange-600' },
