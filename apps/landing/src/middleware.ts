@@ -132,17 +132,31 @@ export async function middleware(request: NextRequest) {
       .eq('user_id', user.id)
       .single()
 
-    // If query failed or no admin_users record, deny access
+    // se query falhou, redireciona para login
     if (adminError || !adminUser) {
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('error', 'no_access')
       return NextResponse.redirect(loginUrl)
     }
 
-    // Superadmins can access /salon/* routes (for testing/support)
-    // Regular users must have a salon_id assigned
     const typedAdminUser = adminUser as { role: string; salon_id: string | null }
 
+    // ========================================================================
+    // MAINTENANCE MODE CHECK (only for non-superadmins)
+    // ========================================================================
+    if (typedAdminUser.role !== 'superadmin') {
+      const { data: settings } = await supabase
+        .from('system_settings')
+        .select('maintenance_mode')
+        .limit(1)
+        .single()
+
+      if (settings?.maintenance_mode) {
+        return NextResponse.redirect(new URL('/manutencao', request.url))
+      }
+    }
+
+    // Regular users must have a salon_id assigned
     if (typedAdminUser.role !== 'superadmin' && !typedAdminUser.salon_id) {
       // User has no salon assigned - redirect to login with error
       const loginUrl = new URL('/login', request.url)

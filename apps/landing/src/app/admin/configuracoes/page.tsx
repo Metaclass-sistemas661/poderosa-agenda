@@ -45,6 +45,14 @@ export default function ConfiguracoesPage() {
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [isSavingSystem, setIsSavingSystem] = useState(false)
+
+  const [systemSettings, setSystemSettings] = useState({
+    id: '',
+    maintenance_mode: false,
+    require_manual_approval: false,
+    enable_system_emails: true
+  })
 
   const [passwords, setPasswords] = useState({
     current: '',
@@ -70,6 +78,22 @@ export default function ConfiguracoesPage() {
             role: adminUser.role,
             createdAt: new Date(adminUser.created_at).toLocaleDateString('pt-BR'),
             avatarUrl: session.user.user_metadata?.avatar_url || '',
+          })
+        }
+
+        // Carregar config do sistema
+        const { data: settingsData } = await supabase
+          .from('system_settings')
+          .select('*')
+          .limit(1)
+          .single()
+
+        if (settingsData) {
+          setSystemSettings({
+            id: settingsData.id,
+            maintenance_mode: settingsData.maintenance_mode,
+            require_manual_approval: settingsData.require_manual_approval,
+            enable_system_emails: settingsData.enable_system_emails
           })
         }
       }
@@ -190,6 +214,35 @@ export default function ConfiguracoesPage() {
     }
 
     setIsSaving(false)
+    setTimeout(() => setMessage(null), 3000)
+  }
+
+  const handleUpdateSystemSettings = async () => {
+    if (!systemSettings.id) {
+      setMessage({ type: 'error', text: 'Configurações de sistema não encontradas.' })
+      return
+    }
+
+    setIsSavingSystem(true)
+    setMessage(null)
+
+    try {
+      const { error } = await supabase
+        .from('system_settings')
+        .update({
+          maintenance_mode: systemSettings.maintenance_mode,
+          require_manual_approval: systemSettings.require_manual_approval,
+          enable_system_emails: systemSettings.enable_system_emails
+        })
+        .eq('id', systemSettings.id)
+
+      if (error) throw error
+      setMessage({ type: 'success', text: 'Configurações do sistema salvas!' })
+    } catch {
+      setMessage({ type: 'error', text: 'Erro ao atualizar configurações do sistema.' })
+    }
+
+    setIsSavingSystem(false)
     setTimeout(() => setMessage(null), 3000)
   }
 
@@ -527,14 +580,67 @@ export default function ConfiguracoesPage() {
                   <h2 className="text-lg font-semibold text-white">Preferências do Sistema</h2>
                   <p className="text-sm text-gray-400">Opções globais para o painel SuperAdmin</p>
                 </div>
-                <div className="p-6">
-                  <div className="p-6 border border-white/5 rounded-xl bg-black/20 text-center space-y-3">
-                    <Monitor className="w-8 h-8 text-gray-500 mx-auto" />
-                    <p className="text-white font-medium">Configurações globais</p>
-                    <p className="text-sm text-gray-400 max-w-sm mx-auto">
-                      O painel SuperAdmin opera sempre em modo escuro otimizado para não causar fadiga ocular em sessões longas. Em breve novas preferências de UI.
-                    </p>
+                <div className="p-6 space-y-4">
+                  {/* Maintenance Mode */}
+                  <div className="flex items-center justify-between p-5 bg-black/20 border border-white/5 rounded-xl">
+                    <div className="pr-4">
+                      <h3 className="text-white font-medium flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-500" />
+                        Modo de Manutenção
+                      </h3>
+                      <p className="text-gray-400 text-sm mt-1">Bloqueia o acesso à plataforma para usuários normais. Apenas SuperAdmins poderão fazer login.</p>
+                    </div>
+                    <button
+                      onClick={() => setSystemSettings(p => ({ ...p, maintenance_mode: !p.maintenance_mode }))}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-[#1a2332] ${systemSettings.maintenance_mode ? 'bg-emerald-500' : 'bg-gray-600'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${systemSettings.maintenance_mode ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
                   </div>
+                  
+                  {/* require_manual_approval */}
+                  <div className="flex items-center justify-between p-5 bg-black/20 border border-white/5 rounded-xl">
+                    <div className="pr-4">
+                      <h3 className="text-white font-medium flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-blue-500" />
+                        Aprovação Manual de Salões
+                      </h3>
+                      <p className="text-gray-400 text-sm mt-1">Se ativo, novos salões precisarão de aprovação manual sua. Se inativo, são aprovados e provisionados assim que pagarem.</p>
+                    </div>
+                    <button
+                      onClick={() => setSystemSettings(p => ({ ...p, require_manual_approval: !p.require_manual_approval }))}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-[#1a2332] ${systemSettings.require_manual_approval ? 'bg-emerald-500' : 'bg-gray-600'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${systemSettings.require_manual_approval ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                  
+                  {/* enable_system_emails */}
+                  <div className="flex items-center justify-between p-5 bg-black/20 border border-white/5 rounded-xl">
+                    <div className="pr-4">
+                      <h3 className="text-white font-medium flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-emerald-500" />
+                        Envio de E-mails Transacionais
+                      </h3>
+                      <p className="text-gray-400 text-sm mt-1">Habilita ou desabilita (kill-switch) o envio global de todos os e-mails automáticos da plataforma.</p>
+                    </div>
+                    <button
+                      onClick={() => setSystemSettings(p => ({ ...p, enable_system_emails: !p.enable_system_emails }))}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-[#1a2332] ${systemSettings.enable_system_emails ? 'bg-emerald-500' : 'bg-gray-600'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${systemSettings.enable_system_emails ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6 border-t border-white/5 bg-black/20 flex justify-end">
+                  <button
+                    onClick={handleUpdateSystemSettings}
+                    disabled={isSavingSystem}
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-xl hover:bg-emerald-600 focus:ring-4 focus:ring-emerald-500/20 transition-all disabled:opacity-50"
+                  >
+                    {isSavingSystem ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Salvar Configurações
+                  </button>
                 </div>
               </motion.div>
             )}

@@ -839,9 +839,36 @@ export async function POST(request: NextRequest) {
         }
 
         // ========================================
-        // 9. EXECUTE PROVISIONING
+        // 9. CHECK MANUAL APPROVAL & PROVISIONING
         // ========================================
-        console.log('[MP_WEBHOOK] Starting provisioning for access request:', accessRequestId)
+        console.log('[MP_WEBHOOK] Checking system settings for approval mode')
+        
+        const { data: settings } = await supabase
+            .from('system_settings')
+            .select('require_manual_approval')
+            .limit(1)
+            .single()
+
+        if (settings?.require_manual_approval) {
+            console.log('[MP_WEBHOOK] Manual approval required. Provisioning deferred for access request:', accessRequestId)
+            
+            if (webhookRecord?.id) {
+                await supabase
+                    .from('payment_webhooks')
+                    .update({
+                        status: 'processed' as const,
+                        processed_at: new Date().toISOString()
+                    })
+                    .eq('id', webhookRecord.id)
+            }
+
+            return NextResponse.json({
+                status: 'success',
+                message: 'Payment processed, awaiting manual approval'
+            })
+        }
+
+        console.log('[MP_WEBHOOK] Starting automatic provisioning for access request:', accessRequestId)
 
         const provisioningResult = await completeProvisioning(
             supabase,

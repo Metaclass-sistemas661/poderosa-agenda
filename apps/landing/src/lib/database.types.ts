@@ -372,6 +372,34 @@ export interface Database {
           }
         ]
       }
+      // Configurações Globais do Sistema
+      system_settings: {
+        Row: {
+          id: string
+          maintenance_mode: boolean
+          require_manual_approval: boolean
+          enable_system_emails: boolean
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          maintenance_mode?: boolean
+          require_manual_approval?: boolean
+          enable_system_emails?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          maintenance_mode?: boolean
+          require_manual_approval?: boolean
+          enable_system_emails?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       // Clientes/CRM
       clients: {
         Row: {
