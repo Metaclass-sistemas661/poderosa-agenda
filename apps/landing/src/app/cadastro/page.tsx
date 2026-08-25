@@ -578,7 +578,7 @@ function CadastroForm() {
             © {new Date().getFullYear()} Poderosa Agenda. Todos os direitos reservados.
           </div>
         </motion.footer>
-      </motion.div>
+      </div>
     </div>
   )
 }
