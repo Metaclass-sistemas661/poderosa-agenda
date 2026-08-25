@@ -11,9 +11,9 @@ export function Pricing({ id = 'planos' }: { id?: string }) {
   const [isAnnual, setIsAnnual] = useState(false)
 
   const pricing = useMemo(() => ({
-    monthly: 59.90,
-    annual: 49.90,
-    savings: Math.round(((59.90 - 49.90) / 59.90) * 100)
+    monthly: 49.90,
+    annual: 39.90,
+    savings: Math.round(((49.90 - 39.90) / 49.90) * 100)
   }), [])
 
   const currentPrice = isAnnual ? pricing.annual : pricing.monthly
