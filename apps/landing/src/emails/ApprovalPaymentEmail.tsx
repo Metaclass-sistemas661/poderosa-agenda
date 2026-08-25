@@ -21,12 +21,14 @@ interface ApprovalPaymentEmailProps {
   salonName: string
   paymentLink: string
   planPrice: string
+  isAnnual?: boolean
 }
 
 export const ApprovalPaymentEmail = ({
   salonName = 'Estabelecimento',
   paymentLink = 'https://poderosaagenda.com.br',
   planPrice = '59,90',
+  isAnnual = false,
 }: ApprovalPaymentEmailProps) => {
   return (
     <EmailWrapper preview={`Sua conta corporativa na Poderosa Agenda foi aprovada - ${salonName}`}>
@@ -73,7 +75,7 @@ export const ApprovalPaymentEmail = ({
                 textTransform: 'uppercase' as const,
               }}
             >
-              Plano Básico
+              {isAnnual ? 'Plano Anual' : 'Plano Mensal'}
             </Text>
             <Text
               style={{
@@ -97,15 +99,17 @@ export const ApprovalPaymentEmail = ({
             >
               R$ {planPrice}
             </Text>
-            <Text
-              style={{
-                color: colors.slate[500],
-                fontSize: '12px',
-                margin: '2px 0 0',
-              }}
-            >
-              /mês
-            </Text>
+            {!isAnnual && (
+              <Text
+                style={{
+                  color: colors.slate[500],
+                  fontSize: '12px',
+                  margin: '2px 0 0',
+                }}
+              >
+                /mês
+              </Text>
+            )}
           </Column>
         </Row>
       </Section>

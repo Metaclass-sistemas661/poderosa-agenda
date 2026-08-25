@@ -110,10 +110,14 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
         
         let paymentLink = ''
         
+        const isAnnualPlan = request.plan_type === 'annual'
+        const finalPrice = isAnnualPlan ? 478.80 : DEFAULT_PLAN_PRICE
+        const finalTitle = isAnnualPlan ? 'Assinatura Poderosa Agenda (Anual)' : DEFAULT_PLAN_TITLE
+        
         if (paymentGateway.createCheckoutPreference) {
             paymentLink = await paymentGateway.createCheckoutPreference({
-                title: DEFAULT_PLAN_TITLE,
-                amount: DEFAULT_PLAN_PRICE,
+                title: finalTitle,
+                amount: finalPrice,
                 referenceId: requestId,
                 customerEmail: request.email,
                 customerName: request.owner_name,
@@ -149,7 +153,8 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
             const emailHtml = await render(ApprovalPaymentEmail({
                 salonName: request.salon_name,
                 paymentLink: paymentLink,
-                planPrice: DEFAULT_PLAN_PRICE.toFixed(2).replace('.', ',')
+                planPrice: finalPrice.toFixed(2).replace('.', ','),
+                isAnnual: isAnnualPlan
             }));
 
             // First, try to send directly via Resend (immediate delivery)

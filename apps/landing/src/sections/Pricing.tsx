@@ -138,7 +138,7 @@ export function Pricing({ id = 'planos' }: { id?: string }) {
 
               {/* CTA Button */}
               <Link 
-                href="/cadastro" 
+                href={`/cadastro?plan=${isAnnual ? 'annual' : 'monthly'}`} 
                 className="w-full py-4 bg-white text-primary-600 rounded-2xl font-bold text-lg hover:bg-slate-50 transition-colors shadow-lg shadow-white/10 flex items-center justify-center gap-2 group"
               >
                 Assinar Agora

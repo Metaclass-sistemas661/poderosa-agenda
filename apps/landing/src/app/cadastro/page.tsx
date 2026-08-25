@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import {
   User,
   Mail,
@@ -62,7 +63,9 @@ const PROFESSIONAL_OPTIONS = [
   { value: '10+', label: 'Mais de 10 profissionais' },
 ]
 
-export default function CadastroPage() {
+function CadastroForm() {
+  const searchParams = useSearchParams()
+  const planType = searchParams.get('plan') === 'annual' ? 'annual' : 'monthly'
   const shouldReduceMotion = useReducedMotion()
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
@@ -108,7 +111,8 @@ export default function CadastroPage() {
         p_address_neighborhood: formData.address_neighborhood || null,
         p_professionals: formData.professionals,
         p_message: formData.message || null,
-        p_source: 'website'
+        p_source: 'website',
+        p_plan_type: planType
       })
 
       if (rpcError) {
@@ -574,7 +578,15 @@ export default function CadastroPage() {
             © {new Date().getFullYear()} Poderosa Agenda. Todos os direitos reservados.
           </div>
         </motion.footer>
-      </div>
+      </motion.div>
     </div>
+  )
+}
+
+export default function CadastroPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0f1419] flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary-500 animate-spin" /></div>}>
+      <CadastroForm />
+    </Suspense>
   )
 }
