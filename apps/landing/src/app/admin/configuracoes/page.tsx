@@ -20,6 +20,7 @@ import {
   Monitor
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useRef } from 'react'
 
 const menuItems = [
   { id: 'profile', label: 'Meu Perfil', icon: User, description: 'Informações básicas da conta' },
@@ -40,7 +41,10 @@ export default function ConfiguracoesPage() {
     email: '',
     role: '',
     createdAt: '',
+    avatarUrl: '',
   })
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
   const [passwords, setPasswords] = useState({
     current: '',
@@ -65,6 +69,7 @@ export default function ConfiguracoesPage() {
             email: adminUser.email,
             role: adminUser.role,
             createdAt: new Date(adminUser.created_at).toLocaleDateString('pt-BR'),
+            avatarUrl: session.user.user_metadata?.avatar_url || '',
           })
         }
       }
@@ -73,6 +78,50 @@ export default function ConfiguracoesPage() {
 
     loadProfile()
   }, [])
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      if (file.size > 2 * 1024 * 1024) {
+        setMessage({ type: 'error', text: 'A imagem deve ter no máximo 2MB' })
+        return
+      }
+
+      setIsUploadingAvatar(true)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) throw new Error('Not authenticated')
+
+      const fileExt = file.name.split('.').pop()
+      const filePath = `admin_avatars/${session.user.id}/${Math.random()}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl }
+      })
+
+      if (updateError) throw updateError
+
+      setProfile(prev => ({ ...prev, avatarUrl: publicUrl }))
+      setMessage({ type: 'success', text: 'Avatar atualizado!' })
+    } catch (err) {
+      console.error(err)
+      setMessage({ type: 'error', text: 'Erro ao enviar a imagem.' })
+    } finally {
+      setIsUploadingAvatar(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   const handleUpdateProfile = async () => {
     setIsSaving(true)
@@ -257,15 +306,32 @@ export default function ConfiguracoesPage() {
                 <div className="p-6 space-y-6">
                   {/* Avatar Section */}
                   <div className="flex items-center gap-6 pb-6 border-b border-white/5">
-                    <div className="relative group cursor-pointer">
-                      <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                        <span className="text-white text-3xl font-bold">
-                          {profile.name?.charAt(0).toUpperCase() || 'A'}
-                        </span>
-                      </div>
+                    <div 
+                      className="relative group cursor-pointer"
+                      onClick={() => !isUploadingAvatar && fileInputRef.current?.click()}
+                    >
+                      {profile.avatarUrl ? (
+                        <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg shadow-emerald-500/20 border-2 border-transparent group-hover:border-emerald-500 transition-all">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                          <span className="text-white text-3xl font-bold">
+                            {profile.name?.charAt(0).toUpperCase() || 'A'}
+                          </span>
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <User className="w-6 h-6 text-white" />
+                        {isUploadingAvatar ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : <User className="w-6 h-6 text-white" />}
                       </div>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleAvatarUpload} 
+                        accept="image/*" 
+                        className="hidden" 
+                      />
                     </div>
                     <div>
                       <p className="text-white font-medium text-lg">{profile.name}</p>
