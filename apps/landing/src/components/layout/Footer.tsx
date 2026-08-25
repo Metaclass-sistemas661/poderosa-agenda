@@ -145,8 +145,7 @@ export function Footer({ className }: { className?: string }) {
               </div>
               <div className="flex flex-col text-slate-500 text-sm">
                 <strong className="text-slate-700 mb-1">Endereço:</strong>
-                <span>Av. Paulista, 1000 - Bela Vista</span>
-                <span>São Paulo, SP - 01310-100</span>
+                <span>São Paulo - Brasil</span>
               </div>
             </div>
 
