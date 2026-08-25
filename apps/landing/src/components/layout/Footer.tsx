@@ -133,7 +133,15 @@ export function Footer({ className }: { className?: string }) {
                 <strong className="text-slate-700">Email:</strong> contato@poderosaagenda.com.br
               </div>
               <div className="flex items-center gap-2 text-slate-500 text-sm">
-                <strong className="text-slate-700">WhatsApp:</strong> (11) 99999-9999
+                <strong className="text-slate-700">WhatsApp:</strong> 
+                <a 
+                  href="https://wa.me/5513996640359" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="hover:text-primary-600 transition-colors"
+                >
+                  +55 13 99664-0359
+                </a>
               </div>
               <div className="flex flex-col text-slate-500 text-sm">
                 <strong className="text-slate-700 mb-1">Endereço:</strong>
