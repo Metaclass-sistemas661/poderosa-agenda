@@ -12,7 +12,7 @@ export interface PixChargeResponse {
   qrCode: string
   qrCodeText: string // "Copia e Cola"
   expiresAt: string
-  gateway: 'asaas' | 'mercado_pago'
+  gateway: 'asaas'
 }
 
 export interface CheckoutPreferenceRequest {

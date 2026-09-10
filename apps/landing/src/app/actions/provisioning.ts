@@ -104,9 +104,9 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
             return { success: false, error: 'Esta solicitação já foi processada.' }
         }
 
-        // 3. Generate Mercado Pago Checkout Link
-        const mercadoPagoToken = process.env.MERCADOPAGO_ACCESS_TOKEN || ''
-        const paymentGateway = createPaymentGateway('mercado_pago', mercadoPagoToken)
+        // 3. Generate Asaas Checkout Link
+        const asaasToken = process.env.ASAAS_ACCESS_TOKEN || ''
+        const paymentGateway = createPaymentGateway('asaas', asaasToken)
         
         let paymentLink = ''
         
@@ -124,12 +124,12 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
                 isAnnual: false // Mensal, sem parcelamento (conforme regra de negócio)
             })
         } else {
-            throw new Error('Gateway Mercado Pago não suporta links de checkout')
+            throw new Error('Gateway Asaas não suporta links de checkout')
         }
 
         if (!paymentLink) {
-            console.error('[PROVISIONING] Failed to generate Mercado Pago link');
-            return { success: false, error: 'Falha ao gerar link de pagamento no Mercado Pago.' }
+            console.error('[PROVISIONING] Failed to generate Asaas link');
+            return { success: false, error: 'Falha ao gerar link de pagamento no Asaas.' }
         }
 
         // 4. Update request status
