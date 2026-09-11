@@ -114,7 +114,7 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
         let paymentLink = ''
         
         const isAnnualPlan = request.plan_type === 'annual'
-        const finalPrice = 5.00 // isAnnualPlan ? 478.80 : DEFAULT_PLAN_PRICE (Alterado temporariamente para testes)
+        const finalPrice = isAnnualPlan ? 478.80 : DEFAULT_PLAN_PRICE
         const finalTitle = isAnnualPlan ? 'Assinatura Poderosa Agenda (Anual)' : DEFAULT_PLAN_TITLE
         
         if (paymentGateway.createCheckoutPreference) {
