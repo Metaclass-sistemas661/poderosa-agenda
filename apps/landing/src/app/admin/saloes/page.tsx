@@ -1041,7 +1041,7 @@ export default function SaloesPage() {
           </>
         )}
       </AnimatePresence>
-\n      {/* Delete Modal */}
+      {/* Delete Modal */}
       <AnimatePresence>
         {showDeleteModal && selectedSalon && (
           <motion.div
