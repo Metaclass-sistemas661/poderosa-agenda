@@ -25,7 +25,7 @@ function buildCSP() {
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `img-src 'self' data: blob: https://${supabaseHost} https://images.unsplash.com https://*.githubusercontent.com`,
     `font-src 'self' https://fonts.gstatic.com data:`,
-    `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://*.supabase.co wss://*.supabase.co`,
+    `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://*.supabase.co wss://*.supabase.co https://viacep.com.br`,
     `frame-src 'none'`,
     `frame-ancestors 'none'`,
     `object-src 'none'`,
