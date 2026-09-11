@@ -117,18 +117,27 @@ export async function POST(req: Request) {
     const userId = authUser.user.id
 
     // 5. Provisionamento do Tenant (Chama a RPC de forma atômica e transacional)
-    const { data: rawProvisionResult, error: provisionError } = await supabaseAdmin.rpc('provision_tenant', {
-      p_request_id: requestId,
-      p_auth_user_id: userId,
-      p_actor_id: userId // O sistema/próprio usuário sendo o ator da criação
-    })
+    let provisionResult: { salon_id?: string; admin_user_id?: string } | null = null;
+    
+    try {
+      const { data: rawProvisionResult, error: provisionError } = await supabaseAdmin.rpc('provision_tenant', {
+        p_request_id: requestId,
+        p_auth_user_id: userId,
+        p_actor_id: userId // O sistema/próprio usuário sendo o ator da criação
+      })
 
-    const provisionResult = rawProvisionResult as unknown as { salon_id?: string; admin_user_id?: string } | null
+      if (provisionError) throw provisionError;
+      
+      provisionResult = rawProvisionResult as unknown as { salon_id?: string; admin_user_id?: string } | null;
+    } catch (provisionError: any) {
+      log.error('[WEBHOOK_ASAAS] Failed to call provision_tenant RPC. Triggering Rollback.', provisionError instanceof Error ? provisionError : new Error(String(provisionError)), { requestId })
+      
+      // ENTERPRISE ROLLBACK: Exclui o usuário do Auth para não deixar lixo, garantindo a atomicidade
+      await supabaseAdmin.auth.admin.deleteUser(userId)
+      log.info('[WEBHOOK_ASAAS] Rollback completed: Auth user deleted successfully', { userId })
 
-    if (provisionError) {
-      log.error('[WEBHOOK_ASAAS] Failed to call provision_tenant RPC', provisionError as Error, { requestId })
-      await supabaseAdmin.from('payment_webhooks').update({ status: 'failed', processing_error: provisionError.message }).eq('external_id', externalId).eq('provider', 'asaas')
-      return NextResponse.json({ error: 'Database provisioning failed' }, { status: 500 })
+      await supabaseAdmin.from('payment_webhooks').update({ status: 'failed', processing_error: provisionError?.message || 'RPC Failed' }).eq('external_id', externalId).eq('provider', 'asaas')
+      return NextResponse.json({ error: 'Database provisioning failed, rollback executed' }, { status: 500 })
     }
 
     // Atualiza os dados de admin_users do novo admin criado pelo RPC para forçar mudança de senha e rastrear provisionamento
