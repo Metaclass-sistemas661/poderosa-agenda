@@ -84,7 +84,7 @@ export async function POST(req: Request) {
       .single()
 
     if (reqError || !request) {
-      log.error('[WEBHOOK_ASAAS] Access request not found', { requestId })
+      log.error('[WEBHOOK_ASAAS] Access request not found', undefined, { requestId })
       await supabaseAdmin.from('payment_webhooks').update({ status: 'failed', processing_error: 'Request not found' }).eq('external_id', externalId).eq('provider', 'asaas')
       return NextResponse.json({ error: 'Request not found' }, { status: 404 })
     }
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
     // Se já não estiver aguardando pagamento ou pendente, ignora para evitar duplicação de tenant
     if (request.status !== 'awaiting_payment' && request.status !== 'pending') {
       log.info('[WEBHOOK_ASAAS] Request not in awaiting_payment state', { requestId, currentStatus: request.status })
-      await supabaseAdmin.from('payment_webhooks').update({ status: 'ignored' }).eq('external_id', externalId).eq('provider', 'asaas')
+      await supabaseAdmin.from('payment_webhooks').update({ status: 'processed', processing_error: 'ignored_state' }).eq('external_id', externalId).eq('provider', 'asaas')
       return NextResponse.json({ received: true, status: 'ignored_state' })
     }
 
@@ -109,7 +109,7 @@ export async function POST(req: Request) {
     })
 
     if (authError || !authUser.user) {
-      log.error('[WEBHOOK_ASAAS] Failed to create auth user', { authError })
+      log.error('[WEBHOOK_ASAAS] Failed to create auth user', authError as Error, { authError: authError?.message })
       await supabaseAdmin.from('payment_webhooks').update({ status: 'failed', processing_error: authError?.message }).eq('external_id', externalId).eq('provider', 'asaas')
       return NextResponse.json({ error: 'Auth provisioning failed' }, { status: 500 })
     }
@@ -117,14 +117,16 @@ export async function POST(req: Request) {
     const userId = authUser.user.id
 
     // 5. Provisionamento do Tenant (Chama a RPC de forma atômica e transacional)
-    const { data: provisionResult, error: provisionError } = await supabaseAdmin.rpc('provision_tenant', {
+    const { data: rawProvisionResult, error: provisionError } = await supabaseAdmin.rpc('provision_tenant', {
       p_request_id: requestId,
       p_auth_user_id: userId,
       p_actor_id: userId // O sistema/próprio usuário sendo o ator da criação
     })
 
+    const provisionResult = rawProvisionResult as unknown as { salon_id?: string; admin_user_id?: string } | null
+
     if (provisionError) {
-      log.error('[WEBHOOK_ASAAS] Failed to call provision_tenant RPC', { provisionError, requestId })
+      log.error('[WEBHOOK_ASAAS] Failed to call provision_tenant RPC', provisionError as Error, { requestId })
       await supabaseAdmin.from('payment_webhooks').update({ status: 'failed', processing_error: provisionError.message }).eq('external_id', externalId).eq('provider', 'asaas')
       return NextResponse.json({ error: 'Database provisioning failed' }, { status: 500 })
     }
@@ -166,12 +168,12 @@ export async function POST(req: Request) {
       })
 
       if (result.error) {
-        log.error('[WEBHOOK_ASAAS] Failed to send welcome email', { error: result.error })
+        log.error('[WEBHOOK_ASAAS] Failed to send welcome email', result.error as Error, { email: request.email })
       } else {
         log.info('[WEBHOOK_ASAAS] Welcome email sent successfully', { emailId: result.data?.id })
       }
     } catch (emailErr) {
-      log.error('[WEBHOOK_ASAAS] Exception while sending welcome email', { emailErr })
+      log.error('[WEBHOOK_ASAAS] Exception while sending welcome email', emailErr instanceof Error ? emailErr : undefined, { error_details: String(emailErr) })
     }
 
     // Marca webhook como processado
@@ -183,7 +185,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, salonId: provisionResult?.salon_id })
 
   } catch (error: any) {
-    log.error('[WEBHOOK_ASAAS] Fatal error processing webhook', { error: error.message })
+    log.error('[WEBHOOK_ASAAS] Fatal error processing webhook', error instanceof Error ? error : new Error(String(error)), { error_message: error?.message })
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }
