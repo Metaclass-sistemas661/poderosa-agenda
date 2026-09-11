@@ -3,7 +3,7 @@ import { PaymentGateway, PixChargeRequest, PixChargeResponse } from './types'
 
 export class AsaasGateway implements PaymentGateway {
   private apiKey: string = ''
-  private baseUrl = 'https://api.asaas.com/v3' // Use sandbox para testes
+  private baseUrl = process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3' // Sandbox por padrão
 
   initialize(accessToken: string): void {
     this.apiKey = accessToken
@@ -102,29 +102,20 @@ export class AsaasGateway implements PaymentGateway {
   async createCheckoutPreference(request: import('./types').CheckoutPreferenceRequest): Promise<string> {
     if (!this.apiKey) throw new Error('Asaas is not initialized')
 
-    const customer = await this.getOrCreateCustomer({
-      amount: request.amount,
-      description: request.title,
-      customerName: request.customerName,
-      customerEmail: request.customerEmail
-    })
-
-    const dueDate = new Date()
-    dueDate.setDate(dueDate.getDate() + 3) // Vence em 3 dias
-
     try {
-      const response = await fetch(`${this.baseUrl}/payments`, {
+      const response = await fetch(`${this.baseUrl}/paymentLinks`, {
         method: 'POST',
         headers: {
           'access_token': this.apiKey,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          customer: customer.id,
-          billingType: 'UNDEFINED', // Permite o cliente escolher a forma de pagamento
-          value: request.amount,
-          dueDate: dueDate.toISOString().split('T')[0],
+          name: request.title,
           description: request.title,
+          billingType: 'UNDEFINED',
+          chargeType: 'DETACHED',
+          value: request.amount,
+          dueDateLimitDays: 3,
           externalReference: request.referenceId
         })
       })
@@ -135,10 +126,10 @@ export class AsaasGateway implements PaymentGateway {
         throw new Error(data.errors?.[0]?.description || 'Asaas API Error creating checkout preference')
       }
 
-      log.info('Asaas Checkout Link created', { chargeId: data.id })
+      log.info('Asaas Payment Link created', { linkId: data.id })
 
       // Retorna a URL da fatura hospedada pelo Asaas
-      return data.invoiceUrl
+      return data.url
     } catch (error) {
       log.error('Failed to create Asaas Checkout Link', error as Error)
       throw error

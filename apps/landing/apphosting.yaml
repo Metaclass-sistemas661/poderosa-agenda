@@ -111,3 +111,13 @@ env:
   # - variable: MP_WEBHOOK_SECRET
   #   secret: MP_WEBHOOK_SECRET
   # ─────────────────────────────────────────────────────────────────────────────
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Asaas (Pagamentos)
+  # ─────────────────────────────────────────────────────────────────────────────
+  - variable: ASAAS_API_URL
+    value: https://api.asaas.com/v3
+  - variable: ASAAS_ACCESS_TOKEN
+    secret: ASAAS_ACCESS_TOKEN
+  - variable: ASAAS_WEBHOOK_TOKEN
+    secret: ASAAS_WEBHOOK_TOKEN

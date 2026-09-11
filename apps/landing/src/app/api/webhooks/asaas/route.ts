@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     const requestId = payment.externalReference
 
     if (!requestId) {
-      log.error('[WEBHOOK_ASAAS] Missing externalReference (requestId) in payment', { paymentId: payment.id })
+      log.error('[WEBHOOK_ASAAS] Missing externalReference (requestId) in payment', undefined, { paymentId: payment.id })
       return NextResponse.json({ error: 'Missing externalReference' }, { status: 400 })
     }
 

@@ -105,13 +105,16 @@ export async function approveAndProvisionSalon(requestId: string): Promise<Provi
         }
 
         // 3. Generate Asaas Checkout Link
-        const asaasToken = process.env.ASAAS_ACCESS_TOKEN || ''
+        let asaasToken = process.env.ASAAS_ACCESS_TOKEN || ''
+        if (asaasToken && !asaasToken.startsWith('$')) {
+            asaasToken = '$' + asaasToken
+        }
         const paymentGateway = createPaymentGateway('asaas', asaasToken)
         
         let paymentLink = ''
         
         const isAnnualPlan = request.plan_type === 'annual'
-        const finalPrice = isAnnualPlan ? 478.80 : DEFAULT_PLAN_PRICE
+        const finalPrice = 5.00 // isAnnualPlan ? 478.80 : DEFAULT_PLAN_PRICE (Alterado temporariamente para testes)
         const finalTitle = isAnnualPlan ? 'Assinatura Poderosa Agenda (Anual)' : DEFAULT_PLAN_TITLE
         
         if (paymentGateway.createCheckoutPreference) {

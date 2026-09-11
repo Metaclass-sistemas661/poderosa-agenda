@@ -58,49 +58,89 @@ export const WelcomeEmail = ({
         <>
           <Section
             style={{
-              backgroundColor: colors.slate[100],
+              backgroundColor: '#f8fafc',
               borderRadius: '12px',
-              margin: '24px 40px',
-              padding: '24px',
-              border: `2px solid ${colors.primary[600]}`,
+              margin: '32px 0',
+              padding: '32px 24px',
+              border: '1px solid #e2e8f0',
             }}
           >
             <Text
               style={{
                 color: colors.primary[600],
-                fontSize: '14px',
+                fontSize: '13px',
                 fontWeight: '600',
                 letterSpacing: '0.05em',
-                margin: '0 0 16px',
+                margin: '0 0 24px',
                 textTransform: 'uppercase' as const,
                 textAlign: 'center' as const,
               }}
             >
-              🔐 Suas Credenciais de Acesso
+              🔐 Credenciais de Acesso
             </Text>
 
-            <DataTable
-              rows={[
-                { label: 'Senha Temporária', value: temporaryPassword || '' },
-              ]}
-            />
+            <Section style={{ textAlign: 'center', width: '100%' }}>
+              <table style={{ margin: '0 auto', borderCollapse: 'collapse' }}>
+                <tr>
+                  <td style={{ 
+                    backgroundColor: '#ffffff', 
+                    border: '1px solid #e2e8f0', 
+                    borderRadius: '8px', 
+                    padding: '16px 32px',
+                    textAlign: 'center'
+                  }}>
+                    <Text style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Senha Temporária
+                    </Text>
+                    <Text
+                      style={{
+                        color: '#0f172a',
+                        fontSize: '24px',
+                        fontWeight: '700',
+                        letterSpacing: '0.1em',
+                        margin: '0',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {temporaryPassword}
+                    </Text>
+                  </td>
+                </tr>
+              </table>
+            </Section>
 
             <Text
               style={{
-                color: colors.slate[500],
-                fontSize: '12px',
-                margin: '16px 0 0',
+                color: '#64748b',
+                fontSize: '13px',
+                margin: '24px 0 0',
                 textAlign: 'center' as const,
               }}
             >
-              Use o e-mail para o qual recebeu esta mensagem
+              O login é o e-mail para o qual recebeu esta mensagem
             </Text>
           </Section>
 
-          <InfoBox variant="warning">
-            <strong>⚠️ Importante:</strong> Por segurança, você será obrigado(a)
-            a trocar esta senha temporária no primeiro acesso ao sistema.
-          </InfoBox>
+          <Section
+            style={{
+              backgroundColor: '#fffbeb',
+              borderRadius: '8px',
+              padding: '16px 20px',
+              borderLeft: '4px solid #f59e0b',
+              marginBottom: '32px'
+            }}
+          >
+            <Text
+              style={{
+                color: '#92400e',
+                fontSize: '13px',
+                margin: 0,
+                lineHeight: '1.5'
+              }}
+            >
+              <strong>⚠️ Importante:</strong> Por segurança, o sistema exigirá que você cadastre uma <strong>nova senha</strong> logo no seu primeiro acesso.
+            </Text>
+          </Section>
         </>
       )}
 
