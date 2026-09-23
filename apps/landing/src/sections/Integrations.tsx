@@ -121,7 +121,7 @@ export function Integrations({ id = 'integracoes' }: { id?: string }) {
         {/* The Central Scrolling List */}
         <div className="relative w-full max-w-4xl px-4 flex justify-center items-center h-full z-20">
           <motion.div
-            ref={containerRef}
+            style={{ y: listY }}
             className="flex flex-col items-center gap-6 sm:gap-10 transition-transform"
           >
             {INTEGRATIONS.map((item, index) => (

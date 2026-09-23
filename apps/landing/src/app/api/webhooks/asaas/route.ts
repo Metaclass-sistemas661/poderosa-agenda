@@ -104,7 +104,7 @@ export async function POST(req: Request) {
       email_confirm: true,
       user_metadata: {
         name: request.owner_name,
-        role: 'superadmin' // Set as standard tenant owner role initially
+        role: 'admin' // Tenant owner role
       }
     })
 
