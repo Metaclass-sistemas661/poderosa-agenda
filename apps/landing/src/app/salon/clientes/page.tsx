@@ -871,7 +871,6 @@ export default function ClientesPage() {
 
                   {selectedClient.notes && <div className="p-5 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 rounded-2xl"><p className="text-xs font-bold uppercase text-amber-600 dark:text-amber-500 mb-2 flex items-center gap-2"><AlertCircle className="w-4 h-4" /> Observações</p><p className="text-amber-900 dark:text-amber-200 text-sm leading-relaxed">{selectedClient.notes}</p></div>}
                 </div>
-                </div>
                 <div className="shrink-0 p-6 border-t border-slate-100 dark:border-white/10 flex gap-2">
                   <button onClick={() => { setShowViewDrawer(false); handleEdit(selectedClient) }} className="flex-1 px-6 py-4 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-xl font-bold transition-all">Editar Perfil</button>
                   <button onClick={() => setShowViewDrawer(false)} className="flex-1 px-6 py-4 text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10 rounded-xl font-bold transition-all">Fechar Perfil</button>
