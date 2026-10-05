@@ -20,7 +20,7 @@ import {
   CreditCard,
   Banknote
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useSalonLayout } from '@/contexts/SalonLayoutContext'
 import { FinanceiroTabs } from '../FinanceiroTabs'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie } from 'recharts'
