@@ -111,10 +111,39 @@ export default function AgendamentosHealthRatePage() {
     setIsLoading(false)
   }
 
+  const isNewClient = createForm.client_id === 'new'
+  const quickClientName = createForm.client_name.trim()
+  const quickClientPhone = createForm.client_phone.replace(/\D/g, '')
+
+  // Validação única (usada pelo botão e pelo submit) — retorna a mensagem de erro ou null
+  const getCreateValidationError = (): string | null => {
+    if (!salonId) return 'Salão não identificado. Recarregue a página.'
+    if (!selectedProfessionalId) return 'Cadastre/selecione um profissional antes de agendar.'
+    if (!createForm.client_id) return 'Selecione um cliente.'
+    if (isNewClient) {
+      if (quickClientName.length < 2) return 'Informe o nome do cliente (mín. 2 caracteres).'
+      if (quickClientName.length > 255) return 'Nome do cliente muito longo.'
+      if (quickClientPhone && (quickClientPhone.length < 10 || quickClientPhone.length > 11)) return 'Telefone inválido. Use DDD + número.'
+    }
+    if (!createForm.service_id) return services.length === 0 ? 'Nenhum serviço ativo cadastrado.' : 'Selecione um serviço.'
+    return null
+  }
+  const createValidationError = getCreateValidationError()
+
+  const formatPhoneInput = (v: string) => {
+    const d = v.replace(/\D/g, '').slice(0, 11)
+    if (d.length <= 2) return d.length ? `(${d}` : ''
+    if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+    if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+  }
+
   const handleCreate = async () => {
-    if (!salonId || !selectedProfessionalId || !createForm.service_id || (!createForm.client_id && !createForm.client_name)) {
-      setMessage({ type: 'error', text: 'Preencha os campos obrigatórios.' })
-      return setTimeout(() => setMessage(null), 3000)
+    if (isSaving) return // evita duplo submit
+    const validationError = getCreateValidationError()
+    if (validationError) {
+      setMessage({ type: 'error', text: validationError })
+      return setTimeout(() => setMessage(null), 3500)
     }
 
     const selectedProf = professionals.find(p => p.id === selectedProfessionalId)
@@ -123,26 +152,48 @@ export default function AgendamentosHealthRatePage() {
       return setTimeout(() => setMessage(null), 4000)
     }
 
-    setIsSaving(true)
     const selectedService = services.find(s => s.id === createForm.service_id)
+    if (!selectedService) {
+      setMessage({ type: 'error', text: 'Serviço inválido. Recarregue a página.' })
+      return setTimeout(() => setMessage(null), 3500)
+    }
+
+    setIsSaving(true)
+    let createdClientId: string | null = null
 
     try {
-      let finalClientId = createForm.client_id !== 'new' && createForm.client_id !== '' ? createForm.client_id : null;
-      let finalClientName = createForm.client_name;
-      let finalClientPhone = createForm.client_phone;
+      let finalClientId: string | null = null
+      let finalClientName = ''
+      let finalClientPhone = ''
 
-      if (finalClientId) {
-        const existingClient = clients.find(c => c.id === finalClientId);
-        if (existingClient) {
-          finalClientName = existingClient.name;
-          finalClientPhone = existingClient.phone || '';
-        }
+      if (!isNewClient) {
+        const existingClient = clients.find(c => c.id === createForm.client_id)
+        if (!existingClient) throw new Error('Cliente selecionado não encontrado.')
+        finalClientId = existingClient.id
+        finalClientName = existingClient.name
+        finalClientPhone = existingClient.phone || ''
       } else {
-        // Cria cliente rápido se n existir
-        const { data: newClient } = await (supabase as any).from('clients').insert({
-          salon_id: salonId, name: createForm.client_name, phone: createForm.client_phone.replace(/\D/g, '') || null
-        }).select().single()
-        if (newClient) finalClientId = newClient.id
+        // Deduplicação: reaproveita cliente com mesmo telefone (ou mesmo nome sem telefone)
+        const duplicate = clients.find(c =>
+          quickClientPhone
+            ? (c.phone || '').replace(/\D/g, '') === quickClientPhone
+            : !c.phone && c.name.trim().toLowerCase() === quickClientName.toLowerCase()
+        )
+        if (duplicate) {
+          finalClientId = duplicate.id
+          finalClientName = duplicate.name
+          finalClientPhone = duplicate.phone || ''
+        } else {
+          const { data: newClient, error: clientError } = await (supabase as any).from('clients').insert({
+            salon_id: salonId, name: quickClientName, phone: quickClientPhone || null
+          }).select('id, name, phone').single()
+          if (clientError) throw new Error(`Falha ao cadastrar cliente: ${clientError.message}`)
+          if (!newClient) throw new Error('Falha ao cadastrar cliente.')
+          createdClientId = newClient.id
+          finalClientId = newClient.id
+          finalClientName = newClient.name
+          finalClientPhone = newClient.phone || ''
+        }
       }
 
       const { data, error } = await (supabase as any).from('appointments').insert({
@@ -155,14 +206,23 @@ export default function AgendamentosHealthRatePage() {
       }).select().single()
 
       if (error) throw error
-      if (data) {
-        setAppointments(prev => [...prev, data])
-        setMessage({ type: 'success', text: 'Agendado com sucesso!' })
-        setShowCreateDrawer(false)
-        setCreateForm({ client_id: '', client_name: '', client_phone: '', service_id: '', scheduled_time: '09:00' })
+      if (!data) throw new Error('Agendamento não retornado pelo servidor.')
+
+      // Sincroniza a lista local de clientes para o novo cliente aparecer no select
+      if (createdClientId) {
+        setClients(prev => [...prev, { id: createdClientId, name: finalClientName, phone: finalClientPhone || null }]
+          .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')))
       }
+      setAppointments(prev => [...prev, data])
+      setMessage({ type: 'success', text: createdClientId ? 'Cliente cadastrado e agendado!' : 'Agendado com sucesso!' })
+      setShowCreateDrawer(false)
+      setCreateForm({ client_id: '', client_name: '', client_phone: '', service_id: '', scheduled_time: '09:00' })
     } catch (e: any) {
-      setMessage({ type: 'error', text: e.message })
+      // Rollback: não deixa cliente órfão se o agendamento falhar
+      if (createdClientId) {
+        await (supabase as any).from('clients').delete().eq('id', createdClientId)
+      }
+      setMessage({ type: 'error', text: e?.message || 'Erro ao agendar.' })
     }
     setIsSaving(false)
     setTimeout(() => setMessage(null), 3000)
@@ -381,7 +441,8 @@ export default function AgendamentosHealthRatePage() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-[#1c1c1f] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-40 max-h-64 overflow-y-auto"
+                className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-[#1c1c1f] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-40 max-h-64 overflow-y-auto overscroll-contain"
+                data-lenis-prevent
               >
                 {professionals.map(p => (
                   <button
@@ -586,12 +647,12 @@ export default function AgendamentosHealthRatePage() {
           {showCreateDrawer && (
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-[55] backdrop-blur-sm" onClick={() => setShowCreateDrawer(false)} />
-              <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30 }} className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
-                <div className="p-6 border-b border-slate-100 dark:border-white/10 flex justify-between items-center">
+              <motion.div role="dialog" aria-modal="true" aria-label="Novo Agendamento" data-lenis-prevent initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30 }} className="fixed top-0 right-0 bottom-0 w-full max-w-md h-[100dvh] bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
+                <div className="shrink-0 p-6 border-b border-slate-100 dark:border-white/10 flex justify-between items-center">
                   <h2 className="text-lg font-bold">Novo Agendamento</h2>
                   <button onClick={() => setShowCreateDrawer(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><X className="w-5 h-5" /></button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                <form id="create-appointment-form" onSubmit={e => { e.preventDefault(); handleCreate() }} data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5">
                   <div className="flex gap-4 mb-4 bg-slate-100 dark:bg-white/5 p-4 rounded-xl">
                     <div><p className="text-xs text-slate-500">Data</p><p className="font-bold">{new Date(filterDate + 'T12:00:00').toLocaleDateString('pt-BR')}</p></div>
                     <div><p className="text-xs text-slate-500">Horário</p><p className="font-bold">{createForm.scheduled_time}</p></div>
@@ -619,8 +680,8 @@ export default function AgendamentosHealthRatePage() {
 
                   {createForm.client_id === 'new' && (
                     <div className="space-y-4 p-4 border border-slate-200 dark:border-white/10 rounded-xl bg-slate-50/50 dark:bg-white/5">
-                      <div><label className="block text-xs font-semibold uppercase mb-2">Nome do Cliente *</label><input type="text" value={createForm.client_name} onChange={e => setCreateForm({ ...createForm, client_name: e.target.value })} className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1a2332] outline-none" placeholder="Nome do cliente" /></div>
-                      <div><label className="block text-xs font-semibold uppercase mb-2">Telefone</label><input type="text" value={createForm.client_phone} onChange={e => setCreateForm({ ...createForm, client_phone: e.target.value })} className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1a2332] outline-none" placeholder="(11) 99999-9999" /></div>
+                      <div><label htmlFor="quick-client-name" className="block text-xs font-semibold uppercase mb-2">Nome do Cliente *</label><input id="quick-client-name" type="text" autoFocus autoComplete="off" maxLength={255} value={createForm.client_name} onChange={e => setCreateForm(f => ({ ...f, client_name: e.target.value }))} className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1a2332] outline-none focus:border-primary-500" placeholder="Nome do cliente" /></div>
+                      <div><label htmlFor="quick-client-phone" className="block text-xs font-semibold uppercase mb-2">Telefone</label><input id="quick-client-phone" type="tel" inputMode="numeric" autoComplete="off" value={createForm.client_phone} onChange={e => setCreateForm(f => ({ ...f, client_phone: formatPhoneInput(e.target.value) }))} className="w-full p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1a2332] outline-none focus:border-primary-500" placeholder="(11) 99999-9999" /></div>
                     </div>
                   )}
                   <div>
@@ -629,10 +690,13 @@ export default function AgendamentosHealthRatePage() {
                       <option value="">Selecione...</option>
                       {services.map(s => <option key={s.id} value={s.id}>{s.name} - R$ {s.price}</option>)}
                     </select>
+                    {services.length === 0 && <p className="mt-2 text-xs text-amber-500">Nenhum serviço ativo. Cadastre um serviço em Serviços.</p>}
                   </div>
-                </div>
-                <div className="p-6 border-t border-slate-100 dark:border-white/10">
-                  <button onClick={handleCreate} disabled={isSaving || !createForm.service_id || (!createForm.client_id && !createForm.client_name)} className="w-full py-4 bg-primary-500 text-white font-bold rounded-xl shadow-lg hover:bg-primary-600 transition-colors flex justify-center">{isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Agendar'}</button>
+                  {!selectedProfessionalId && <p className="text-xs text-amber-500">Nenhum profissional selecionado. Cadastre um profissional primeiro.</p>}
+                </form>
+                <div className="shrink-0 p-6 border-t border-slate-100 dark:border-white/10 space-y-2">
+                  {createValidationError && !isSaving && <p className="text-xs text-center text-slate-500">{createValidationError}</p>}
+                  <button type="submit" form="create-appointment-form" disabled={isSaving || !!createValidationError} className="w-full py-4 bg-primary-500 text-white font-bold rounded-xl shadow-lg hover:bg-primary-600 transition-colors flex justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-500">{isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Agendar'}</button>
                 </div>
               </motion.div>
             </>
@@ -647,12 +711,12 @@ export default function AgendamentosHealthRatePage() {
           {showEditDrawer && selectedAppointment && (
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-[55] backdrop-blur-sm" onClick={() => setShowEditDrawer(false)} />
-              <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30 }} className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
-                <div className="p-6 border-b border-slate-100 dark:border-white/10 flex justify-between items-center">
+              <motion.div role="dialog" aria-modal="true" aria-label="Detalhes da Reserva" data-lenis-prevent initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30 }} className="fixed top-0 right-0 bottom-0 w-full max-w-md h-[100dvh] bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
+                <div className="shrink-0 p-6 border-b border-slate-100 dark:border-white/10 flex justify-between items-center">
                   <h2 className="text-lg font-bold">Detalhes da Reserva</h2>
                   <button onClick={() => setShowEditDrawer(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><X className="w-5 h-5" /></button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-6">
                   <div className="text-center">
                     <div className="w-16 h-16 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-3"><User className="w-8 h-8 text-slate-400" /></div>
                     <h3 className="text-xl font-bold">{selectedAppointment.client_name}</h3>
@@ -693,13 +757,13 @@ export default function AgendamentosHealthRatePage() {
           {showCheckoutDrawer && selectedAppointment && (
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-[55] backdrop-blur-sm" onClick={() => setShowCheckoutDrawer(false)} />
-              <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30 }} className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
-                <div className="p-6 border-b border-slate-100 dark:border-white/10 flex justify-between items-center">
+              <motion.div role="dialog" aria-modal="true" aria-label="Checkout" data-lenis-prevent initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30 }} className="fixed top-0 right-0 bottom-0 w-full max-w-md h-[100dvh] bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
+                <div className="shrink-0 p-6 border-b border-slate-100 dark:border-white/10 flex justify-between items-center">
                   <h2 className="text-lg font-bold flex items-center gap-2"><ShoppingBag className="w-5 h-5 text-primary-500" /> Checkout</h2>
                   <button onClick={() => setShowCheckoutDrawer(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><X className="w-5 h-5" /></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-6">
                   {/* Resumo do Serviço */}
                   <div className="bg-slate-50 dark:bg-white/5 p-4 rounded-2xl">
                     <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">Serviço Realizado</h3>

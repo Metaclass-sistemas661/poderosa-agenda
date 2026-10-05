@@ -1,26 +1,29 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Percent,
   Search,
-  Loader2,
   RefreshCw,
+  DollarSign,
+  TrendingUp,
+  Users,
+  Calendar,
+  ChevronDown,
+  BarChart3,
   CheckCircle,
   AlertCircle,
   X,
-  DollarSign,
-  Calendar,
-  TrendingUp,
-  Users,
-  Filter,
-  Download,
-  CreditCard
+  Plus,
+  Receipt,
+  PieChart as PieChartIcon,
+  CreditCard,
+  Banknote
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import { getSafeErrorMessage } from '@/lib/errors/toast'
+import { supabase } from '@/lib/supabase/client'
 import { useSalonLayout } from '@/contexts/SalonLayoutContext'
+import { FinanceiroTabs } from '../FinanceiroTabs'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie } from 'recharts'
 
 interface Professional {
   id: string
@@ -28,57 +31,51 @@ interface Professional {
   commission_rate: number
 }
 
-interface Commission {
+interface Transaction {
   id: string
-  professional_id: string
-  professional_name: string
-  period_start: string
-  period_end: string
-  total_services: number
-  total_amount: number
-  commission_amount: number
-  status: 'pending' | 'paid'
-  paid_at: string | null
+  type: 'income' | 'expense'
+  category: string | null
+  amount: number
+  description: string | null
+  date: string
+  professional_id: string | null
+  commission_amount: number | null
+  status: string
+  payment_method: string | null
+  professionals: { name: string, commission_rate: number } | null
 }
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value)
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
-}
-
-export default function ComissoesPage() {
-  const [commissions, setCommissions] = useState<Commission[]>([])
+export default function ComissoesEquipePage() {
   const [professionals, setProfessionals] = useState<Professional[]>([])
+  const [selectedProfId, setSelectedProfId] = useState<string>('all')
+  const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'paid'>('all')
-  const [filterProfessional, setFilterProfessional] = useState<string>('all')
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7))
-  const { salonId } = useSalonLayout()
-  const [showPayModal, setShowPayModal] = useState(false)
-  const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
+  
+  const [filterPeriod, setFilterPeriod] = useState<'today' | 'week' | 'month' | 'custom'>('month')
+  const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0])
+  const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0])
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false)
+
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const { salonId } = useSalonLayout()
 
   useEffect(() => {
     if (salonId) {
       fetchProfessionals()
-      fetchCommissions()
     }
-  }, [salonId, selectedMonth])
+  }, [salonId])
+
+  useEffect(() => {
+    if (salonId) {
+      fetchData()
+    }
+  }, [salonId, selectedProfId, filterPeriod, customStartDate, customEndDate])
 
   const fetchProfessionals = async () => {
-    if (!salonId) return
     const { data } = await supabase
       .from('professionals')
       .select('id, name, commission_rate')
@@ -87,117 +84,123 @@ export default function ComissoesPage() {
     if (data) setProfessionals(data)
   }
 
-  const fetchCommissions = async () => {
-    if (!salonId) return
+  const fetchData = async () => {
     setIsLoading(true)
+    let startDate: string
+    let endDate: string
 
-    const [year, month] = selectedMonth.split('-')
-    const periodStart = `${year}-${month}-01`
-    const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
-    const periodEnd = `${year}-${month}-${lastDay}`
-
-    // Buscar transações do período por profissional
-    const { data: transactions } = await supabase
-      .from('transactions')
-      .select('professional_id, professionals(name, commission_rate), amount, commission_amount')
-      .eq('salon_id', salonId)
-      .eq('type', 'income')
-      .eq('status', 'completed')
-      .gte('date', periodStart)
-      .lte('date', periodEnd)
-      .not('professional_id', 'is', null)
-
-    if (transactions) {
-      // Agrupar por profissional
-      const grouped = transactions.reduce((acc, t) => {
-        const profId = t.professional_id!
-        if (!acc[profId]) {
-          acc[profId] = {
-            id: `${profId}-${selectedMonth}`,
-            professional_id: profId,
-            professional_name: t.professionals?.name || 'Desconhecido',
-            period_start: periodStart,
-            period_end: periodEnd,
-            total_services: 0,
-            total_amount: 0,
-            commission_amount: 0,
-            status: 'pending' as const,
-            paid_at: null
-          }
-        }
-        acc[profId].total_services++
-        acc[profId].total_amount += t.amount
-        acc[profId].commission_amount += t.commission_amount || 0
-        return acc
-      }, {} as Record<string, Commission>)
-
-      setCommissions(Object.values(grouped))
+    const now = new Date()
+    switch (filterPeriod) {
+      case 'today':
+        startDate = now.toISOString().split('T')[0]
+        endDate = startDate
+        break
+      case 'week': {
+        const weekDate = new Date()
+        weekDate.setDate(weekDate.getDate() - 7)
+        startDate = weekDate.toISOString().split('T')[0]
+        endDate = now.toISOString().split('T')[0]
+        break
+      }
+      case 'month': {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+        break
+      }
+      case 'custom':
+      default:
+        startDate = customStartDate
+        endDate = customEndDate
+        break
     }
 
+    let query = supabase
+      .from('transactions')
+      .select('id, type, category, amount, description, date, professional_id, commission_amount, status, payment_method, professionals(name, commission_rate)')
+      .eq('salon_id', salonId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+
+    if (selectedProfId !== 'all') {
+      query = query.eq('professional_id', selectedProfId)
+    } else {
+      query = query.not('professional_id', 'is', null)
+    }
+
+    const { data } = await query
+    if (data) {
+      setTransactions(data as Transaction[])
+    }
     setIsLoading(false)
   }
 
-  const handleMarkAsPaid = (commission: Commission) => {
-    setSelectedCommission(commission)
-    setShowPayModal(true)
-  }
+  const handlePayCommission = async (profId: string, amount: number) => {
+    if (!salonId) return
+    setIsLoading(true)
+    const { error } = await supabase
+      .from('transactions')
+      .insert({
+        salon_id: salonId,
+        type: 'expense',
+        category: 'comissoes',
+        description: `Pagamento de Comissão`,
+        amount: amount,
+        payment_method: 'dinheiro',
+        professional_id: profId,
+        date: new Date().toISOString().split('T')[0],
+        status: 'completed'
+      })
 
-  const confirmPayment = async () => {
-    if (!selectedCommission || !salonId) return
-    setIsSaving(true)
-
-    try {
-      // Criar transação de pagamento de comissão
-      const { error } = await supabase
-        .from('transactions')
-        .insert({
-          salon_id: salonId,
-          type: 'expense',
-          category: 'Comissões',
-          description: `Comissão ${selectedCommission.professional_name} - ${selectedMonth}`,
-          amount: selectedCommission.commission_amount,
-          payment_method: 'dinheiro',
-          professional_id: selectedCommission.professional_id,
-          date: new Date().toISOString().split('T')[0],
-          status: 'completed'
-        })
-
-      if (error) throw error
-
-      // Atualizar estado local
-      setCommissions(prev => prev.map(c =>
-        c.id === selectedCommission.id
-          ? { ...c, status: 'paid', paid_at: new Date().toISOString() }
-          : c
-      ))
-
-      setMessage({ type: 'success', text: 'Comissão paga com sucesso!' })
-      setShowPayModal(false)
-    } catch (err: any) {
-      console.error('Erro:', err)
-      setMessage({ type: 'error', text: getSafeErrorMessage(err, 'registrar pagamento') })
+    if (!error) {
+      setMessage({ type: 'success', text: 'Pagamento de comissão registrado com sucesso!' })
+      fetchData()
+    } else {
+      setMessage({ type: 'error', text: 'Erro ao registrar pagamento.' })
     }
-
-    setIsSaving(false)
+    setIsLoading(false)
     setTimeout(() => setMessage(null), 3000)
   }
 
-  const filteredCommissions = commissions.filter(c => {
-    const matchSearch = searchTerm === '' ||
-      c.professional_name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Cálculos consolidados
+  const { totalServices, totalRevenue, totalCommission, alreadyPaid } = useMemo(() => {
+    let _totalServices = 0
+    let _totalRevenue = 0
+    let _totalCommission = 0
+    let _alreadyPaid = 0
 
-    const matchStatus = filterStatus === 'all' || c.status === filterStatus
-    const matchProfessional = filterProfessional === 'all' || c.professional_id === filterProfessional
+    transactions.forEach(t => {
+      if (t.type === 'income' && t.status === 'completed') {
+        _totalServices += 1
+        _totalRevenue += t.amount
+        _totalCommission += t.commission_amount || 0
+      }
+      if (t.type === 'expense' && t.category?.toLowerCase() === 'comissoes' && t.status === 'completed') {
+        _alreadyPaid += t.amount
+      }
+    })
 
-    return matchSearch && matchStatus && matchProfessional
-  })
+    return { totalServices: _totalServices, totalRevenue: _totalRevenue, totalCommission: _totalCommission, alreadyPaid: _alreadyPaid }
+  }, [transactions])
 
-  // Calcular totais
-  const summary = {
-    total: commissions.reduce((sum, c) => sum + c.commission_amount, 0),
-    pending: commissions.filter(c => c.status === 'pending').reduce((sum, c) => sum + c.commission_amount, 0),
-    paid: commissions.filter(c => c.status === 'paid').reduce((sum, c) => sum + c.commission_amount, 0),
-  }
+  const pendingCommission = Math.max(0, totalCommission - alreadyPaid)
+
+  // Gráfico de Serviços mais realizados
+  const servicesChartData = useMemo(() => {
+    const counts: Record<string, number> = {}
+    transactions.forEach(t => {
+      if (t.type === 'income' && t.status === 'completed' && t.description) {
+        // Assume description has the service name or we use category
+        const key = t.description.split('-')[0].trim() || t.category || 'Serviço'
+        counts[key] = (counts[key] || 0) + 1
+      }
+    })
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5) // Top 5
+  }, [transactions])
+
+  const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6']
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
@@ -217,272 +220,209 @@ export default function ComissoesPage() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
+      {/* Header and Navigation */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Comissões</h1>
-          <p className="text-gray-400 text-sm">Gestão de comissões dos profissionais</p>
+          <h1 className="text-2xl font-bold text-white mb-2">Comissões e Equipe</h1>
+          <FinanceiroTabs />
         </div>
-
-        <button onClick={fetchCommissions} disabled={isLoading} className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50">
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
-
-      {/* Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-6 border border-purple-500/20"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-purple-400" />
-            </div>
-            <TrendingUp className="w-5 h-5 text-purple-400" />
-          </div>
-          <p className="text-purple-400 text-sm font-medium mb-1">Total do Mês</p>
-          <p className="text-3xl font-bold text-white">{formatCurrency(summary.total)}</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-2xl p-6 border border-amber-500/20"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-amber-400" />
-            </div>
-            <Percent className="w-5 h-5 text-amber-400" />
-          </div>
-          <p className="text-amber-400 text-sm font-medium mb-1">A Pagar</p>
-          <p className="text-3xl font-bold text-white">{formatCurrency(summary.pending)}</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-2xl p-6 border border-emerald-500/20"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-emerald-400" />
-            </div>
-            <CreditCard className="w-5 h-5 text-emerald-400" />
-          </div>
-          <p className="text-emerald-400 text-sm font-medium mb-1">Pago</p>
-          <p className="text-3xl font-bold text-white">{formatCurrency(summary.paid)}</p>
-        </motion.div>
-      </div>
-
-      {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-
-        <select
-          value={filterProfessional}
-          onChange={(e) => setFilterProfessional(e.target.value)}
-          className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-        >
-          <option value="all">Todos Profissionais</option>
-          {professionals.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilterStatus('all')}
-            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${filterStatus === 'all'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
-              }`}
-          >
-            Todos
+        <div className="flex items-center gap-3 self-end sm:self-auto">
+          <button onClick={fetchData} disabled={isLoading} className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50">
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
-          <button
-            onClick={() => setFilterStatus('pending')}
-            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${filterStatus === 'pending'
-                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
-                : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
-              }`}
-          >
-            Pendentes
-          </button>
-          <button
-            onClick={() => setFilterStatus('paid')}
-            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${filterStatus === 'paid'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
-              }`}
-          >
-            Pagos
-          </button>
-        </div>
-
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Buscar profissional..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-56"
-          />
         </div>
       </div>
 
-      {/* Loading */}
-      {isLoading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
-        </div>
-      )}
+      {/* Finora Dash Top Section */}
+      <div className="bg-[#1c1c1f] rounded-[2rem] p-6 border border-white/5">
+        <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
+          
+          <div className="flex-1 w-full flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Profissional</label>
+              <select
+                value={selectedProfId}
+                onChange={(e) => setSelectedProfId(e.target.value)}
+                className="w-full bg-[#0f1419] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary-500 transition-colors"
+              >
+                <option value="all">Todos os Profissionais</option>
+                {professionals.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
 
-      {/* Commissions List */}
-      {!isLoading && filteredCommissions.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid gap-4"
-        >
-          {filteredCommissions.map((commission) => (
-            <motion.div
-              key={commission.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-[#1a2332] rounded-2xl border border-white/5 p-6 hover:border-white/10 transition-all"
-            >
-              <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                {/* Info */}
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="text-lg font-bold text-white mb-1">{commission.professional_name}</h3>
-                      <p className="text-sm text-gray-400">
-                        {formatDate(commission.period_start)} - {formatDate(commission.period_end)}
-                      </p>
-                    </div>
-                    <span className={`px-3 py-1.5 rounded-lg text-xs font-medium ${commission.status === 'paid'
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      }`}>
-                      {commission.status === 'paid' ? 'Pago' : 'Pendente'}
-                    </span>
-                  </div>
+            <div className="flex-1 relative">
+              <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Período</label>
+              <button
+                onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#0f1419] border border-white/10 rounded-xl text-white hover:bg-white/5 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  {filterPeriod === 'today' ? 'Hoje' : filterPeriod === 'week' ? 'Últimos 7 Dias' : filterPeriod === 'month' ? 'Este Mês' : 'Personalizado'}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isFilterDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Serviços</p>
-                      <p className="text-lg font-bold text-white">{commission.total_services}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Total Faturado</p>
-                      <p className="text-lg font-bold text-white">{formatCurrency(commission.total_amount)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Comissão</p>
-                      <p className="text-lg font-bold text-emerald-400">{formatCurrency(commission.commission_amount)}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                {commission.status === 'pending' && (
-                  <button
-                    onClick={() => handleMarkAsPaid(commission)}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-emerald-500/20 transition-all"
+              <AnimatePresence>
+                {isFilterDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute top-full left-0 right-0 mt-2 bg-[#1c1c1f] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 p-2"
                   >
-                    <CheckCircle className="w-4 h-4" />
-                    Marcar como Pago
-                  </button>
+                    {[
+                      { value: 'today', label: 'Hoje' },
+                      { value: 'week', label: '7 Dias' },
+                      { value: 'month', label: 'Este Mês' },
+                      { value: 'custom', label: 'Personalizado' }
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setFilterPeriod(option.value as any)
+                          setIsFilterDropdownOpen(false)
+                        }}
+                        className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors hover:bg-white/5 rounded-xl ${filterPeriod === option.value
+                          ? 'text-primary-500 bg-primary-500/10'
+                          : 'text-gray-300'
+                          }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </motion.div>
                 )}
-
-                {commission.status === 'paid' && commission.paid_at && (
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 mb-1">Pago em</p>
-                    <p className="text-sm font-medium text-emerald-400">{formatDate(commission.paid_at)}</p>
-                  </div>
-                )}
+              </AnimatePresence>
+            </div>
+            
+            {filterPeriod === 'custom' && (
+              <div className="flex-1 flex gap-2">
+                <div className="w-1/2">
+                  <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Início</label>
+                  <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="w-full bg-[#0f1419] border border-white/10 rounded-xl px-3 py-3 text-white text-sm" />
+                </div>
+                <div className="w-1/2">
+                  <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Fim</label>
+                  <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="w-full bg-[#0f1419] border border-white/10 rounded-xl px-3 py-3 text-white text-sm" />
+                </div>
               </div>
-            </motion.div>
-          ))}
-        </motion.div>
-      )}
-
-      {/* Empty State */}
-      {!isLoading && filteredCommissions.length === 0 && (
-        <div className="bg-[#1a2332] rounded-2xl border border-white/5 p-12 text-center">
-          <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Percent className="w-8 h-8 text-gray-600" />
+            )}
           </div>
-          <h3 className="text-lg font-bold text-white mb-2">Nenhuma comissão</h3>
-          <p className="text-gray-400 text-sm">
-            {searchTerm || filterStatus !== 'all'
-              ? 'Nenhuma comissão encontrada com os filtros aplicados'
-              : 'Não há comissões para este período'
-            }
-          </p>
         </div>
-      )}
+      </div>
 
-      {/* Pay Modal */}
-      <AnimatePresence>
-        {showPayModal && selectedCommission && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-            onClick={() => setShowPayModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[#1a2332] rounded-2xl w-full max-w-md p-6"
-              onClick={(e) => e.stopPropagation()}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-[#1c1c1f] rounded-[1.5rem] p-6 border border-white/5">
+          <div className="w-10 h-10 bg-primary-500/20 rounded-xl flex items-center justify-center mb-4">
+            <Users className="w-5 h-5 text-primary-400" />
+          </div>
+          <p className="text-gray-400 text-sm font-medium mb-1">Serviços Realizados</p>
+          <p className="text-3xl font-bold text-white">{totalServices}</p>
+        </div>
+        <div className="bg-[#1c1c1f] rounded-[1.5rem] p-6 border border-white/5">
+          <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-4">
+            <TrendingUp className="w-5 h-5 text-emerald-400" />
+          </div>
+          <p className="text-gray-400 text-sm font-medium mb-1">Receita Gerada</p>
+          <p className="text-3xl font-bold text-white">{formatCurrency(totalRevenue)}</p>
+        </div>
+        <div className="bg-[#1c1c1f] rounded-[1.5rem] p-6 border border-white/5">
+          <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center mb-4">
+            <DollarSign className="w-5 h-5 text-orange-400" />
+          </div>
+          <p className="text-gray-400 text-sm font-medium mb-1">Comissões (Total)</p>
+          <p className="text-3xl font-bold text-white">{formatCurrency(totalCommission)}</p>
+        </div>
+        <div className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-[1.5rem] p-6 shadow-xl shadow-primary-900/20">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4">
+            <Banknote className="w-5 h-5 text-white" />
+          </div>
+          <p className="text-primary-100 text-sm font-medium mb-1">Pendente a Pagar</p>
+          <p className="text-3xl font-bold text-white mb-4">{formatCurrency(pendingCommission)}</p>
+          {selectedProfId !== 'all' && pendingCommission > 0 && (
+            <button
+              onClick={() => handlePayCommission(selectedProfId, pendingCommission)}
+              className="w-full py-2 bg-white text-primary-700 font-bold rounded-xl hover:bg-primary-50 transition-colors text-sm"
             >
-              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-6 h-6 text-emerald-400" />
+              Liquidar Pagamento
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-[#1c1c1f] rounded-[2rem] p-6 border border-white/5 min-h-[400px] flex flex-col">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-white font-bold text-lg">Top Serviços Realizados</h3>
+              <p className="text-sm text-gray-400">Distribuição por quantidade</p>
+            </div>
+          </div>
+
+          <div className="flex-1 w-full min-h-[300px]">
+            {servicesChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={servicesChartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#374151" opacity={0.3} />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#6b7280' }} />
+                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} width={120} />
+                  <Tooltip
+                    cursor={{ fill: '#27272a', opacity: 0.5 }}
+                    contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '1rem' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Bar dataKey="count" name="Quantidade" radius={[0, 4, 4, 0]}>
+                    {servicesChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500 flex-col gap-3">
+                <Receipt className="w-8 h-8 opacity-20" />
+                <p>Nenhum serviço registrado neste período</p>
               </div>
-              <h2 className="text-lg font-bold text-white text-center mb-2">Confirmar Pagamento</h2>
-              <p className="text-gray-400 text-sm text-center mb-6">
-                Marcar comissão de <strong className="text-white">{selectedCommission.professional_name}</strong> no valor de{' '}
-                <strong className="text-emerald-400">{formatCurrency(selectedCommission.commission_amount)}</strong> como paga?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowPayModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-white/5 text-gray-400 hover:text-white rounded-xl transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={confirmPayment}
-                  disabled={isSaving}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50 transition-all"
-                >
-                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                  Confirmar
-                </button>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-[#1c1c1f] rounded-[2rem] p-6 border border-white/5 min-h-[400px]">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center">
+              <CreditCard className="w-5 h-5 text-orange-400" />
+            </div>
+            <div>
+              <h3 className="text-white font-bold text-lg">Últimas Atividades</h3>
+              <p className="text-sm text-gray-400">Registro de comissões</p>
+            </div>
+          </div>
+
+          <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+            {transactions.filter(t => t.type === 'income' && t.commission_amount! > 0).slice(0, 10).map((t) => (
+              <div key={t.id} className="flex justify-between items-center p-3 rounded-xl bg-[#0f1419] border border-white/5">
+                <div>
+                  <p className="text-white font-medium text-sm">{t.description || t.category || 'Serviço'}</p>
+                  <p className="text-gray-500 text-xs">{new Date(t.date).toLocaleDateString('pt-BR')}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-emerald-400 font-bold text-sm">+{formatCurrency(t.commission_amount || 0)}</p>
+                  <p className="text-gray-500 text-xs">de {formatCurrency(t.amount)}</p>
+                </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            ))}
+            {transactions.filter(t => t.type === 'income' && t.commission_amount! > 0).length === 0 && (
+              <div className="text-center text-gray-500 py-8">Sem atividades recentes</div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

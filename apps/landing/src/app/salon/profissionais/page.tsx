@@ -485,16 +485,16 @@ export default function ProfissionaisDashboard() {
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-[55] backdrop-blur-sm" onClick={() => { setShowCreateDrawer(false); setShowEditDrawer(false) }} />
               <motion.div
+                role="dialog" aria-modal="true" data-lenis-prevent
                 initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                onWheel={(e) => e.stopPropagation()}
-                className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10"
+                className="fixed top-0 right-0 bottom-0 w-full max-w-md h-[100dvh] bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10"
               >
-                <div className="p-6 border-b border-slate-100 dark:border-white/10 flex justify-between items-center">
+                <div className="shrink-0 p-6 border-b border-slate-100 dark:border-white/10 flex justify-between items-center">
                   <h2 className="text-lg font-bold">{showCreateDrawer ? 'Novo Profissional' : 'Editar Perfil'}</h2>
                   <button onClick={() => { setShowCreateDrawer(false); setShowEditDrawer(false) }} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><X className="w-5 h-5" /></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
+                <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5 custom-scrollbar">
                   <div className="flex justify-center mb-6 relative group">
                     {showCreateDrawer ? (
                       createForm.photo_url ? <img src={createForm.photo_url} className="w-24 h-24 rounded-full object-cover" /> : <div className="w-24 h-24 bg-slate-100 dark:bg-white/5 rounded-full flex flex-col items-center justify-center border border-dashed border-slate-300 dark:border-white/20"><UserCircle className="w-8 h-8 text-slate-400 mb-1" /><span className="text-[10px] text-slate-400">Sem Foto</span></div>

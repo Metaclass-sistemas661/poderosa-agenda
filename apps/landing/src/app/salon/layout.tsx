@@ -708,7 +708,8 @@ function SalonLayoutInner({ children }: { children: React.ReactNode }) {
                     initial={appearance.animations_enabled ? { opacity: 0, y: 10 } : undefined}
                     animate={{ opacity: 1, y: 0 }}
                     exit={appearance.animations_enabled ? { opacity: 0, y: 10 } : undefined}
-                    className="absolute top-full left-0 right-0 mt-2 dark:bg-[#1c1c1f] bg-white border dark:border-white/10 border-gray-200 rounded-xl shadow-2xl overflow-hidden z-50 max-h-[70vh] overflow-y-auto"
+                    data-lenis-prevent
+                    className="absolute top-full left-0 right-0 mt-2 dark:bg-[#1c1c1f] bg-white border dark:border-white/10 border-gray-200 rounded-xl shadow-2xl overflow-hidden z-50 max-h-[70vh] overflow-y-auto overscroll-contain"
                   >
                     {!searchQuery ? (
                       // Sugestões quando não há busca

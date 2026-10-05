@@ -537,13 +537,14 @@ export default function EstoquePage() {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-50" onClick={() => setShowCreateDrawer(false)} />
             <motion.div
+              role="dialog" aria-modal="true" data-lenis-prevent
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed top-3 right-3 bottom-3 w-full max-w-md bg-white dark:bg-[#0f1419] z-50 shadow-2xl flex flex-col rounded-[2rem] border border-slate-200 dark:border-white/10"
             >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/5">
+              <div className="shrink-0 flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-sm">
                     <Package className="w-5 h-5 text-white" />
@@ -558,7 +559,7 @@ export default function EstoquePage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-6">
                 {/* Informações Básicas */}
                 <div className="space-y-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-gray-500 mb-2">Informações Básicas</h3>
@@ -718,13 +719,14 @@ export default function EstoquePage() {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-50" onClick={() => setShowEditDrawer(false)} />
             <motion.div
+              role="dialog" aria-modal="true" data-lenis-prevent
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed top-3 right-3 bottom-3 w-full max-w-md bg-white dark:bg-[#0f1419] z-50 shadow-2xl flex flex-col rounded-[2rem] border border-slate-200 dark:border-white/10"
             >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/5">
+              <div className="shrink-0 flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-sm">
                     <Edit3 className="w-5 h-5 text-white" />
@@ -739,7 +741,7 @@ export default function EstoquePage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-6">
                 <div className="space-y-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-gray-500 mb-2">Informações Básicas</h3>
 

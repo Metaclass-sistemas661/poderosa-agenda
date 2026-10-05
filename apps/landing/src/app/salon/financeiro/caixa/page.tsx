@@ -27,6 +27,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { getSafeErrorMessage } from '@/lib/errors/toast'
 import { useSalonLayout } from '@/contexts/SalonLayoutContext'
+import { FinanceiroTabs } from '../FinanceiroTabs'
 
 interface Transaction {
   id: string
@@ -299,11 +300,11 @@ export default function CaixaPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Caixa</h1>
-          <p className="text-gray-400 text-sm">Fluxo de caixa diário</p>
+          <h1 className="text-2xl font-bold text-white mb-2">Caixa</h1>
+          <FinanceiroTabs />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 self-end sm:self-auto">
           <button onClick={fetchTransactions} disabled={isLoading} className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50">
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -542,13 +543,14 @@ export default function CaixaPage() {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-50" onClick={() => setShowCreateDrawer(false)} />
             <motion.div
+              role="dialog" aria-modal="true" data-lenis-prevent
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed top-3 right-3 bottom-3 w-full max-w-md bg-[#0f1419] z-50 shadow-2xl flex flex-col rounded-3xl border border-white/10"
             >
-              <div className="flex items-center justify-between p-6 border-b border-white/10 rounded-t-3xl">
+              <div className="shrink-0 flex items-center justify-between p-6 border-b border-white/10 rounded-t-3xl">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
                     <DollarSign className="w-5 h-5 text-white" />
@@ -563,7 +565,7 @@ export default function CaixaPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5">
                 {/* Tipo */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Tipo *</label>
@@ -697,13 +699,14 @@ export default function CaixaPage() {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-50" onClick={() => setShowEditDrawer(false)} />
             <motion.div
+              role="dialog" aria-modal="true" data-lenis-prevent
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed top-3 right-3 bottom-3 w-full max-w-md bg-[#0f1419] z-50 shadow-2xl flex flex-col rounded-3xl border border-white/10"
             >
-              <div className="flex items-center justify-between p-6 border-b border-white/10 rounded-t-3xl">
+              <div className="shrink-0 flex items-center justify-between p-6 border-b border-white/10 rounded-t-3xl">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center">
                     <Edit3 className="w-5 h-5 text-white" />
@@ -718,7 +721,7 @@ export default function CaixaPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Valor *</label>
                   <div className="relative">

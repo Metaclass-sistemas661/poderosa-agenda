@@ -764,15 +764,15 @@ export default function ClientesPage() {
           {showCreateDrawer && (
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-[55] backdrop-blur-sm" onClick={() => setShowCreateDrawer(false)} />
-              <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }} onWheel={(e) => e.stopPropagation()} className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
-                <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/10">
+              <motion.div role="dialog" aria-modal="true" data-lenis-prevent initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }} onWheel={(e) => e.stopPropagation()} className="fixed top-0 right-0 bottom-0 w-full max-w-md h-[100dvh] bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
+                <div className="shrink-0 flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/10">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-primary-100 dark:bg-primary-500/20 rounded-xl flex items-center justify-center"><Users className="w-5 h-5 text-primary-600 dark:text-primary-400" /></div>
                     <div><h2 className="text-lg font-bold text-slate-900 dark:text-white">Novo Cliente</h2><p className="text-xs text-slate-500">Cadastrar no CRM</p></div>
                   </div>
                   <button onClick={() => setShowCreateDrawer(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-white/5 rounded-xl"><X className="w-5 h-5" /></button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
+                <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5 custom-scrollbar">
                   <div><label className="block text-xs font-bold uppercase text-slate-500 mb-2">Nome *</label><input type="text" value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="Nome completo" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="block text-xs font-bold uppercase text-slate-500 mb-2">Telefone</label><input type="tel" value={createForm.phone} onChange={(e) => setCreateForm({ ...createForm, phone: formatPhone(e.target.value) })} placeholder="(11) 99999-9999" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
@@ -832,7 +832,7 @@ export default function ClientesPage() {
                   <div><label className="block text-xs font-bold uppercase text-slate-500 mb-2">Observações</label><textarea value={createForm.notes} onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })} placeholder="Alergias, preferências..." rows={3} className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" /></div>
                   <button type="button" onClick={() => setCreateForm({ ...createForm, is_vip: !createForm.is_vip })} className={`w-full flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all ${createForm.is_vip ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-400' : 'bg-white dark:bg-[#1a2332] border-slate-200 dark:border-white/10 hover:border-slate-300'}`}><Star className={`w-5 h-5 ${createForm.is_vip ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} /><span className={`font-bold ${createForm.is_vip ? 'text-amber-500 dark:text-amber-400' : 'text-slate-500'}`}>Cliente VIP</span></button>
                 </div>
-                <div className="p-6 border-t border-slate-100 dark:border-white/10 space-y-3">
+                <div className="shrink-0 p-6 border-t border-slate-100 dark:border-white/10 space-y-3">
                   <button onClick={handleCreate} disabled={isSaving || !createForm.name} className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition-all">{isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Salvar Cadastro'}</button>
                   <button onClick={() => setShowCreateDrawer(false)} className="w-full px-6 py-4 text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10 rounded-xl font-bold transition-all">Cancelar</button>
                 </div>
@@ -849,8 +849,8 @@ export default function ClientesPage() {
           {showViewDrawer && selectedClient && (
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-[55] backdrop-blur-sm" onClick={() => setShowViewDrawer(false)} />
-              <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }} onWheel={(e) => e.stopPropagation()} className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
-                <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/10">
+              <motion.div role="dialog" aria-modal="true" data-lenis-prevent initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }} onWheel={(e) => e.stopPropagation()} className="fixed top-0 right-0 bottom-0 w-full max-w-md h-[100dvh] bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
+                <div className="shrink-0 flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/10">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-rose-600 rounded-full flex items-center justify-center shadow-md"><span className="text-white font-bold text-2xl">{selectedClient.name.charAt(0).toUpperCase()}</span></div>
                     <div>
@@ -860,7 +860,7 @@ export default function ClientesPage() {
                   </div>
                   <button onClick={() => setShowViewDrawer(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-white/5 rounded-xl"><X className="w-5 h-5" /></button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-4 custom-scrollbar">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-slate-50 dark:bg-[#1a2332] border border-slate-100 dark:border-white/5 rounded-2xl p-5 text-center"><p className="text-slate-500 text-xs font-bold uppercase mb-1">Visitas</p><p className="text-3xl font-black text-slate-900 dark:text-white">{selectedClient.total_visits}</p></div>
                     <div className="bg-slate-50 dark:bg-[#1a2332] border border-slate-100 dark:border-white/5 rounded-2xl p-5 text-center"><p className="text-slate-500 text-xs font-bold uppercase mb-1">Total Gasto</p><p className="text-2xl font-black text-emerald-500 mt-1">{formatCurrency(selectedClient.total_spent || 0)}</p></div>
@@ -871,7 +871,8 @@ export default function ClientesPage() {
 
                   {selectedClient.notes && <div className="p-5 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 rounded-2xl"><p className="text-xs font-bold uppercase text-amber-600 dark:text-amber-500 mb-2 flex items-center gap-2"><AlertCircle className="w-4 h-4" /> Observações</p><p className="text-amber-900 dark:text-amber-200 text-sm leading-relaxed">{selectedClient.notes}</p></div>}
                 </div>
-                <div className="p-6 border-t border-slate-100 dark:border-white/10 flex gap-2">
+                </div>
+                <div className="shrink-0 p-6 border-t border-slate-100 dark:border-white/10 flex gap-2">
                   <button onClick={() => { setShowViewDrawer(false); handleEdit(selectedClient) }} className="flex-1 px-6 py-4 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-xl font-bold transition-all">Editar Perfil</button>
                   <button onClick={() => setShowViewDrawer(false)} className="flex-1 px-6 py-4 text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10 rounded-xl font-bold transition-all">Fechar Perfil</button>
                 </div>
@@ -908,15 +909,15 @@ export default function ClientesPage() {
           {showEditDrawer && (
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-[55] backdrop-blur-sm" onClick={() => setShowEditDrawer(false)} />
-              <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }} onWheel={(e) => e.stopPropagation()} className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
-                <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/10">
+              <motion.div role="dialog" aria-modal="true" data-lenis-prevent initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }} onWheel={(e) => e.stopPropagation()} className="fixed top-0 right-0 bottom-0 w-full max-w-md h-[100dvh] bg-white dark:bg-[#1c1c1f] z-[60] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10">
+                <div className="shrink-0 flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/10">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-blue-100 dark:bg-blue-500/20 rounded-xl flex items-center justify-center"><Edit3 className="w-5 h-5 text-blue-600 dark:text-blue-400" /></div>
                     <div><h2 className="text-lg font-bold text-slate-900 dark:text-white">Editar Cliente</h2><p className="text-xs text-slate-500">Atualizar dados cadastrais</p></div>
                   </div>
                   <button onClick={() => setShowEditDrawer(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-white/5 rounded-xl"><X className="w-5 h-5" /></button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
+                <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5 custom-scrollbar">
                   <div><label className="block text-xs font-bold uppercase text-slate-500 mb-2">Nome Completo *</label><input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} placeholder="Nome completo" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="block text-xs font-bold uppercase text-slate-500 mb-2">WhatsApp</label><input type="text" value={formatPhone(editForm.phone)} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} placeholder="(00) 00000-0000" className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
@@ -977,7 +978,7 @@ export default function ClientesPage() {
                   <div><label className="block text-xs font-bold uppercase text-slate-500 mb-2">Observações</label><textarea value={editForm.notes} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} placeholder="Alergias, preferências..." rows={3} className="w-full px-4 py-3 bg-slate-50 dark:bg-[#1a2332] border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" /></div>
                   <button type="button" onClick={() => setEditForm({ ...editForm, is_vip: !editForm.is_vip })} className={`w-full flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all ${editForm.is_vip ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-400' : 'bg-white dark:bg-[#1a2332] border-slate-200 dark:border-white/10 hover:border-slate-300'}`}><Star className={`w-5 h-5 ${editForm.is_vip ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} /><span className={`font-bold ${editForm.is_vip ? 'text-amber-500 dark:text-amber-400' : 'text-slate-500'}`}>Cliente VIP</span></button>
                 </div>
-                <div className="p-6 border-t border-slate-100 dark:border-white/10 space-y-3">
+                <div className="shrink-0 p-6 border-t border-slate-100 dark:border-white/10 space-y-3">
                   <button onClick={saveEdit} disabled={isSaving || !editForm.name.trim()} className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition-all">{isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-4 h-4" /> Atualizar Dados</>}</button>
                   <button onClick={() => setShowEditDrawer(false)} className="w-full px-6 py-4 text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10 rounded-xl font-bold transition-all">Cancelar</button>
                 </div>

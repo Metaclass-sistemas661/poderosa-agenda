@@ -565,11 +565,11 @@ export default function ServicosDashboardPage() {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-[60] backdrop-blur-sm" onClick={() => setShowCreateDrawer(false)} />
             <motion.div
+              role="dialog" aria-modal="true" data-lenis-prevent
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              onWheel={e => e.stopPropagation()}
-              className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white dark:bg-[#1c1c1f] z-[70] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10"
+              className="fixed top-0 right-0 bottom-0 w-full max-w-md h-[100dvh] bg-white dark:bg-[#1c1c1f] z-[70] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10"
             >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/10">
+              <div className="shrink-0 flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/10">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary-100 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 rounded-xl flex items-center justify-center">
                     <Scissors className="w-5 h-5" />
@@ -583,7 +583,7 @@ export default function ServicosDashboardPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-0 custom-scrollbar">
+              <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-0 custom-scrollbar">
                 <div className="p-6 space-y-8">
                   {/* Informações Básicas */}
                   <div>
@@ -670,11 +670,11 @@ export default function ServicosDashboardPage() {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-[60] backdrop-blur-sm" onClick={() => setShowEditDrawer(false)} />
             <motion.div
+              role="dialog" aria-modal="true" data-lenis-prevent
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              onWheel={e => e.stopPropagation()}
-              className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white dark:bg-[#1c1c1f] z-[70] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10"
+              className="fixed top-0 right-0 bottom-0 w-full max-w-md h-[100dvh] bg-white dark:bg-[#1c1c1f] z-[70] shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-200 dark:border-white/10"
             >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/10">
+              <div className="shrink-0 flex items-center justify-between p-6 border-b border-slate-100 dark:border-white/10">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary-100 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 rounded-xl flex items-center justify-center">
                     <Edit3 className="w-5 h-5" />
@@ -688,7 +688,7 @@ export default function ServicosDashboardPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-0 custom-scrollbar">
+              <div data-lenis-prevent className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-0 custom-scrollbar">
                 <div className="p-6 space-y-8">
                   {/* Informações Básicas */}
                   <div>

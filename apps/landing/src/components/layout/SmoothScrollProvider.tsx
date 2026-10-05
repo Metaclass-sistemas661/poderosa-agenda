@@ -14,6 +14,11 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
       smoothWheel: true,
       wheelMultiplier: 1,
       touchMultiplier: 2,
+      // Overlays (drawers/modais) são renderizados via portal em <body>, fora do
+      // <main data-lenis-prevent>. Sem isso o Lenis captura o wheel/touch e o
+      // conteúdo interno não rola. Qualquer dialog é liberado para scroll nativo.
+      prevent: (node: HTMLElement) =>
+        !!node.closest?.('[data-lenis-prevent],[role="dialog"],[aria-modal="true"]'),
     })
 
     function raf(time: number) {
