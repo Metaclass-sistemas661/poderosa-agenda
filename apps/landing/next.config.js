@@ -195,8 +195,19 @@ const nextConfig = {
   // Redirecionamentos de segurança
   async redirects() {
     return [
-      // Redireciona HTTP para HTTPS em produção
-      // (Vercel/CDN geralmente faz isso, mas como fallback)
+      // ── Legacy URL Redirects ───────────────────────────────────────
+      // E-mails enviados antes do fix usavam /auth/login.
+      // Redirect permanente garante que links antigos nunca deem 404.
+      {
+        source: '/auth/login',
+        destination: '/login',
+        permanent: true,
+      },
+      {
+        source: '/auth/:path*',
+        destination: '/:path*',
+        permanent: true,
+      },
     ]
   },
 }
