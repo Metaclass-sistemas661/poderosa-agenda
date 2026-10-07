@@ -224,7 +224,7 @@ export async function POST(req: Request) {
       html = await render(WelcomeEmail({
         salonName: request.salon_name,
         ownerName: request.owner_name,
-        loginUrl: `${NEXT_PUBLIC_SITE_URL}/auth/login`,
+        loginUrl: `${NEXT_PUBLIC_SITE_URL}/login`,
         temporaryPassword: tempPassword,
       }))
       const sent = await resend.emails.send({ from: EMAIL_FROM, to: request.email, subject, html })
